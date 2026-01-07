@@ -1,0 +1,17 @@
+# Enable URL rewriting
+RewriteEngine On
+
+# Redirect clean URLs for pages like home, shop, cart, etc.
+RewriteRule ^(home|login-register|accounts|cart|checkout|shop|portfolio|order-details)/?$ index.php?page=$1 [QSA,L]
+
+# Clean URL for product details page
+# Match URLs like /details/123/product-name
+RewriteRule ^details/([0-9]+)/([a-zA-Z0-9-]+)/?$ index.php?page=details&product_id=$1&product_name=$2 [QSA,L]
+
+# Clean URL for category page in the shop (categoryId/categoryName)
+RewriteRule ^shop/([0-9]+)/([a-zA-Z0-9-]+)/?$ index.php?page=shop&category_id=$1&category_name=$2 [QSA,L]
+
+# Optional: Redirect URLs with trailing slashes to non-trailing-slash versions
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.+)/$ /$1 [R=301,L]

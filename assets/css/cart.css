@@ -1,0 +1,504 @@
+@import url("./styles.css");
+
+/*=============== CART ===============*/
+.table__container {
+    overflow-x: auto;
+  }
+  
+  .table {
+    table-layout: fixed;
+    margin-bottom: 2rem;
+    width: 100%;
+  }
+  
+  .table tr {
+    border-top: 1px solid var(--border-color-alt);
+  }
+  
+  .table tr:last-child {
+    border-bottom: 1px solid var(--border-color-alt);
+  }
+  
+  .table tr th:nth-child(1),
+  .table tr td:nth-child(1) {
+    width: 216px;
+  }
+  
+  .table tr th:nth-child(2),
+  .table tr td:nth-child(2) {
+    width: 400px;
+  }
+  
+  .table tr th:nth-child(3),
+  .table tr td:nth-child(3) {
+    width: 108px;
+  }
+  
+  .table tr th:nth-child(4),
+  .table tr td:nth-child(4) {
+    width: 220px;
+  }
+  
+  .table tr th:nth-child(5),
+  .table tr td:nth-child(5) {
+    width: 200px;
+  }
+  
+  .table tr th:nth-child(6),
+  .table tr td:nth-child(6) {
+    width: 152px;
+  }
+  
+  .table__img {
+    width: 80px;
+  }
+  
+  .table tr th,
+  .table tr td {
+    padding: .5rem;
+    text-align: center;
+  }
+  
+  .table__title,
+  .table__description,
+  .table__price,
+  .table__subtotal,
+  .table__trash,
+  .table__stock {
+    font-size: var(--small-font-size);
+  }
+  
+  .table__title,
+  .table__stock {
+    color: var(--first-color);
+  }
+  
+  .table__description {
+    max-width: 250px;
+    margin-inline: auto;
+  }
+  
+  .table__trash {
+    color: var(--text-color-light);
+    cursor: pointer;
+  }
+
+  .table__trash:hover {
+    color: var(--red-color);
+    transition: color 0.3s ease;
+}
+  
+  .cart__actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: .75rem;
+    margin-top: 1.5rem;
+  }
+  
+  .divider {
+    position: relative;
+    text-align: center;
+    margin-block: 3rem;
+  }
+  
+  .divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    border-top: 2px solid var(--border-color-alt);
+  }
+  
+  .divider i {
+    color: var(--text-color-light);
+    background-color: var(--body-color);
+    font-size: 1.25rem;
+    padding-inline: 1.25rem;
+    position: relative;
+    z-index: 10;
+  }
+  
+  .cart__group {
+    grid-template-columns: repeat(2, 1fr);
+    align-items: flex-start;
+  }
+  
+  .cart__shipping .section__title,
+  .cart__coupon .section__title,
+  .cart__total .section__title {
+    font-size: var(--large-font-size);
+    margin-bottom: 1rem;
+  }
+  
+  .cart__coupon {
+    margin-top: 3rem;
+  }
+  
+  .coupon__form .form__group {
+    align-items: center;
+  }
+  
+  .cart__total {
+    border: 1px solid var(--border-color-alt);
+    border-radius: .25rem;
+    padding: 1.75rem;
+  }
+  
+  .cart__total-table {
+    margin-bottom: 1rem;
+  }
+  
+  .cart__total-table tr td {
+    border: 1px solid var(--border-color-alt);
+    padding: .75rem .5rem;
+    width: 50%;
+  }
+  
+  .cart__total-title {
+    font-size: var(--small-font-size);
+  }
+  
+  .cart__total-price {
+    color: var(--first-color);
+    font-weight: var(--weight-700);
+  }
+  
+  .cart__total .btn {
+    display: inline-flex;
+  }
+
+  /* Quantity input styling */
+.quantity {
+  padding: 0.5rem;
+  width: 4rem;
+  text-align: center;
+  border: 1px solid var(--border-color-alt);
+  border-radius: 4px;
+}
+
+.quantity:focus {
+  outline: 2px solid var(--first-color);
+  border-color: var(--first-color);
+}
+
+/* Button styling enhancements */
+.btn {
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+  
+  /*=============== CART OTHERS ===============*/
+
+  @media screen and (max-width: 768px) {
+    .table__container {
+      overflow-x: visible;
+    } 
+    .table {
+        display: block;
+        width: 100%;
+        border: none;
+        background: transparent;
+    }
+    .table tr th {
+      display: none;
+    }
+
+    /* Cart item cards for mobile */
+    .table tr {
+      display: flex;
+      flex-wrap: wrap;
+      position: relative;
+      margin-bottom: 1.5rem;
+      width: 100%;
+      background-color: var(--container-color);
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+      border: none;
+    }
+
+    .table tr:last-child {
+      border-bottom: none;
+    }
+    
+    .table tr th,
+    .table tr td {
+      width: auto !important;
+      border: none;
+      padding: 0.75rem;
+      box-sizing: border-box;
+    }
+    
+    /* Product image */
+    .table tr td:nth-child(1) {
+      width: 40% !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.75rem;
+      background-color: var(--body-color);
+    }
+    
+    /* Product title and description */
+    .table tr td:nth-child(2) {
+      width: 60% !important;
+      text-align: left;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .table__title {
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+      font-weight: var(--weight-600);
+    }
+  
+    .table__description {
+      font-size: 0.85rem;
+      color: var(--text-color-light);
+      margin-top: 0.25rem;
+    }
+    
+    /* Price */
+    .table tr td:nth-child(3) {
+      width: 50% !important;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      border-top: 1px solid #f1f1f1;
+    }
+    
+    .table tr td:nth-child(3)::before {
+      content: "Price: ";
+      font-weight: var(--weight-500);
+      margin-right: 0.5rem;
+      color: var(--text-color-light);
+    }
+    
+    /* Quantity */
+    .table tr td:nth-child(4) {
+      width: 50% !important;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      border-top: 1px solid var(--border-color-alt);
+    }
+    
+    .table tr td:nth-child(4)::before {
+      content: "Qty: ";
+      font-weight: var(--weight-500);
+      margin-right: 0.5rem;
+      color: var(--text-color-light);
+    }
+    
+    /* Subtotal */
+    .table tr td:nth-child(5) {
+      width: 50% !important;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      border-top: 1px solid var(--border-color-alt);
+    }
+    
+    .table tr td:nth-child(5)::before {
+      content: "Subtotal: ";
+      font-weight: var(--weight-500);
+      margin-right: 0.5rem;
+      color: var(--text-color-light);
+    }
+    
+    /* Remove button */
+    .table tr td:nth-child(6) {
+      width: 50% !important;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      border-top: 1px solid var(--border-color-alt);
+    }
+
+    .table__trash {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #f8f8f8;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      color: #777;
+      transition: all 0.3s ease;
+    }
+    
+    .table__trash:hover {
+        background-color: var(--body-color);
+        color: var(--red-color);
+    }
+    
+    .quantity {
+      max-width: 70px;
+      text-align: center;
+      padding: 0.5rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+    }
+    
+    .cart__group {
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+    
+    .cart__actions {
+      justify-content: center;
+      margin: 1.5rem 0;
+    }
+    
+    .table__img {
+      width: 100%;
+      max-width: 120px;
+      height: auto;
+      object-fit: contain;
+      border-radius: 6px;
+    }
+
+    /* Enhanced cart summary */
+    .cart__total {
+      background-color: var(--body-color);
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+      padding: 1.5rem;
+    }
+    
+    .cart__total-table {
+      width: 100%;
+    }
+    
+    .cart__total-table tr td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color-alt);
+    }
+  
+    .cart__total-table tr:last-child td {
+      border-bottom: none;
+      padding-top: 1.25rem;
+    }
+  
+    .cart__total-price {
+      text-align: right;
+    }
+  
+    .cart__total .btn {
+      width: 100%;
+      margin-top: 1rem;
+      justify-content: center;
+      padding: 0.75rem;
+      font-weight: var(--weight-600);
+      border-radius: 6px;
+    }
+  
+    /* Shipping calculator */
+    .cart__shipping {
+      background-color: var(--body-color);
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+  
+    .cart__shipping .form {
+      margin-top: 1rem;
+    }
+  
+    .cart__shipping .form__input {
+      border-radius: 6px;
+      padding: 0.75rem;
+      border: 1px solid var(--border-color-alt);
+    }
+  
+    .cart__shipping .form__btn {
+      margin-top: 1rem;
+    }
+  
+    .cart__shipping .btn {
+      width: 100%;
+      justify-content: center;
+    }
+  
+    /* Continue shopping button and login button */
+    .cart__actions .btn {
+      width: 100%;
+      justify-content: center;
+      margin: 0.5rem 0;
+    }
+  }
+  
+  /* For small devices */
+  @media screen and (max-width: 480px) {
+    .breadcrumb {
+      margin-bottom: 1rem;
+    }
+    
+    .table__container {
+      padding: 0;
+    }
+    
+    .table {
+      width: 100%;
+      margin: 0;
+    }
+    
+    /* Make each cart item take full width */
+    .table tr td:nth-child(1) {
+      width: 40% !important;
+    }
+    
+    .table tr td:nth-child(2) {
+      width: 60% !important;
+    }
+    
+    /* Stack price, quantity, subtotal, and remove in two columns */
+    .table tr td:nth-child(3),
+    .table tr td:nth-child(5) {
+      width: 50% !important;
+      padding: 0.75rem;
+    }
+    
+    .table tr td:nth-child(4),
+    .table tr td:nth-child(6) {
+      width: 50% !important;
+      padding: 0.75rem;
+    }
+    
+    /* Smaller font size for small screens */
+    .table__title {
+      font-size: 0.95rem;
+    }
+    
+    .table__description,
+    .table__price,
+    .table__subtotal {
+      font-size: 0.8rem;
+    }
+    
+    /* Better spacing for small screens */
+    .divider {
+      margin-block: 2rem;
+    }
+    
+    /* Optimize cart empty state */
+    .table tr td[colspan="6"] {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-color-light);
+    }
+  }

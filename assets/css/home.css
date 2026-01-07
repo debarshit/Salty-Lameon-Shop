@@ -1,0 +1,134 @@
+@import url("./styles.css");
+
+/*=============== HOME ===============*/
+/* Banner Section */
+.banner {
+    position: relative;
+    width: 100vw;
+    height: 100%;
+  }
+  
+  .banner__image-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .banner__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .banner__image--small {
+    display: none;
+  }
+  
+  .banner__image--large {
+    display: block;
+  }
+  
+  .logo {
+    position: absolute;
+    top: 100%;
+    left: 50px;
+    transform: translateY(-50%);
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2.5px solid var(--body-color);
+    width: 150px;
+    height: 150px;
+  }
+  
+  .logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  /* Base Styling for the navs container */
+  .navs__container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    padding: 20px 0;
+    margin-top: 5%;
+  }
+  
+  /* Styling for each nav item */
+  .nav-item {
+    flex: 1 1 calc(25% - 20px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    padding: 0.625rem 0.625rem 1.25rem;
+    border-radius: 1.25rem;
+  }
+  
+  .nav__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10%;
+    margin-bottom: 10px;
+  }
+  
+  .nav__title {
+    color: var(--red-color);
+    font-size: var(--normal-font-size);
+    font-weight: var(--weight-700);
+  }
+
+  /* For large devices */
+  @media screen and (max-width: 1200px) {
+    .home__container {
+      grid-template-columns: 5.5fr 6.5fr;
+    }
+  }
+
+  /* For medium devices */
+  @media screen and (max-width: 992px) {
+    .home__container {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .nav-item {
+      flex: 1 1 calc(50% - 20px);
+    }
+  }
+  
+  /* For small devices */
+  @media screen and (max-width: 576px) {
+    .banner__image--large {
+      display: none;
+    }
+    
+    .banner__image--small {
+      display: block;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .logo {
+      width: 100px;
+      height: 100px;
+    }
+    
+    .nav-item {
+      flex: 1 1 calc(50% - 20px);
+    }
+  
+    .nav__img {
+      width: 100px;
+      height: 100px;
+    }
+  
+    .nav__title {
+      font-size: 14px;
+    }
+  }

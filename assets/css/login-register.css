@@ -1,0 +1,27 @@
+@import url("./styles.css");
+
+/*=============== LOGIN & REGISTER ===============*/
+.login-register__container {
+    grid-template-columns: repeat(2, 1fr);
+    align-items: flex-start;
+  }
+  
+  .login,
+  .register {
+    border: 1px solid var(--border-color-alt);
+    padding: 2rem;
+    border-radius: 0.5rem;
+  }
+
+  .forgot-password-link {
+    display: block;
+    margin-top: 10px;
+    font-size: 14px;
+    color: var(--red-color);
+    text-decoration: none;
+    text-align: end;
+  }
+  
+  .forgot-password-link:hover {
+    text-decoration: underline;
+  }

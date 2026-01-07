@@ -1,0 +1,131 @@
+@import url("./styles.css");
+
+/*=============== CHECKOUT ===============*/
+.checkout__container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .checkout__group:nth-child(2) {
+    border: 1px solid var(--border-color-alt);
+    padding: 2rem;
+    border-radius: 0.5rem;
+  }
+  
+  .checkout__group .section__title {
+    font-size: var(--large-font-size);
+  }
+  
+  .checkout__title {
+    font-size: var(--small-font-size);
+  }
+  
+  .order__table tr th,
+  .order__table tr td {
+    border: 1px solid var(--border-color-alt);
+    padding: .5rem;
+    text-align: center;
+  }
+  
+  .order__table tr th {
+    color: var(--title-color);
+    font-size: var(--small-font-size);
+  }
+  
+  .order__img {
+    width: 80px;
+  }
+  
+  .table__quantity,
+  .order__subtitle {
+    font-size: var(--small-font-size);
+  }
+  
+  .order__grand-total {
+    color: var(--first-color);
+    font-size: var(--large-font-size);
+    font-weight: var(--weight-700);
+  }
+  
+  .payment__methods {
+    margin-block: 2.5rem 2.75rem
+  }
+  
+  .payment__title {
+    margin-bottom: 1.5rem;
+  }
+  
+  .payment__option {
+    margin-bottom: 1rem;
+  }
+  
+  .payment__input {
+    accent-color: var(--first-color);
+  }
+  
+  .payment__label {
+    font-size: var(--small-font-size);
+  }
+
+  /*=============== SUCCESS ANIMATION ===============*/
+  .success-animation {
+    position: fixed;
+    left: 40%;
+    z-index: 9999; 
+    display: block;
+    text-align: center;
+}
+
+.checkmark {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    display: block;
+    stroke-width: 4;
+    stroke: var(--first-color);
+    stroke-miterlimit: 10;
+    box-shadow: inset 0px 0px 0px var(--first-color);
+    animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+    position: relative;
+    top: 5px;
+    right: 5px;
+    margin: 0 auto;
+}
+
+.checkmark__circle {
+    stroke-dasharray: 166;
+    stroke-dashoffset: 166;
+    stroke-width: 4;
+    stroke-miterlimit: 10;
+    stroke: var(--first-color);
+    fill: #fff;
+    animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.checkmark__check {
+    transform-origin: 50% 50%;
+    stroke-dasharray: 48;
+    stroke-dashoffset: 48;
+    animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+    stroke: var(--first-color);
+}
+
+@keyframes stroke {
+    100% {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes scale {
+    0%, 100% {
+        transform: none;
+    }
+    50% {
+        transform: scale3d(1.1, 1.1, 1);
+    }
+}
+
+@keyframes fill {
+    100% {
+        box-shadow: inset 0px 0px 0px 30px var(--first-color);
+    }
+}
