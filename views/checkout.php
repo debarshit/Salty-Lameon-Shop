@@ -43,9 +43,13 @@
       <!--=============== CHECKOUT ===============-->
       <section class="checkout section--lg">
         <div class="checkout__container container grid">
-          <div class="checkout__group">
-            <h3 class="section__title">Billing Details</h3>
+          <div class="checkout__group checkout__address">
+            <button type="button" class="checkout__collapse-toggle" aria-expanded="true">
+              <h3 class="section__title">Billing Details</h3>
+              <span class="collapse__icon">−</span>
+            </button>
 
+            <div class="checkout__collapse-content">
             <?php 
               if (isset($addresses['error'])) {
                 echo '<p>' . htmlspecialchars($addresses['error']) . '</p>';
@@ -74,7 +78,7 @@
           
               echo '</div>';
             ?>
-
+            </div>
           </div>
 
           <div class="checkout__group">
@@ -99,13 +103,13 @@
               ?>
 
               <tr>
-                <td><span class="order__subtitle">SubTotal</span></td>
-                <td colspan="2"><span class="table__price subtotal__price">₹<?php echo number_format($subtotal, 2); ?></span></td>
+                <td colspan="2"><span class="order__subtitle">SubTotal</span></td>
+                <td><span class="table__price subtotal__price">₹<?php echo number_format($subtotal, 2); ?></span></td>
               </tr>
 
               <tr>
-                <td><span class="order__subtitle">Shipping</span></td>
-                <td colspan="2">
+                <td colspan="2"><span class="order__subtitle">Shipping</span></td>
+                <td>
                   <span class="table__price shipping__price">
                     <?php 
                     if ($subtotal < 150) {
@@ -118,9 +122,9 @@
                 </td>
               </tr>
 
-              <tr>
-                <td><span class="order__subtitle">Total</span></td>
-                <td colspan="2"><span class="order__grand-total">₹<?php echo number_format($subtotal + $shippingCharge, 2); ?></span></td>
+              <tr class="colored__total">
+                <td colspan="2"><span class="order__subtitle">Total</span></td>
+                <td><span class="order__grand-total">₹<?php echo number_format($subtotal + $shippingCharge, 2); ?></span></td>
               </tr>
             </table>
 
@@ -132,10 +136,10 @@
                 <label for="" class="payment__label">Pay online</label>
               </div>
 
-              <div class="payment__option flex">
+              <!-- <div class="payment__option flex">
                 <input type="radio" name="payment_method" value="offline" class="payment__input">
                 <label for="" class="payment__label">Pay on delivery</label>
-              </div>
+              </div> -->
             </div>
 
             <form id="orderForm">
@@ -194,6 +198,7 @@
     function initCheckoutPage() {
       if (isLoggedIn) {
         setupLoggedInCheckout();
+        setupBillingCollapse();
       } else {
         setupGuestCheckout();
       }
@@ -205,57 +210,57 @@
     */
     function setupGuestCheckout() {
       // Get the billing details container
-      const billingDetailsContainer = document.querySelector('.checkout__group:first-child');
+      const billingGroup = document.querySelector('.checkout__group.checkout__address');
+      if (!billingGroup) return;
       
       // Create guest checkout form
-      billingDetailsContainer.innerHTML = `
-        <h3 class="section__title">Billing Details</h3>
+      const guestFormHTML = `
         <div class="guest-checkout-form">
           <div class="form__group">
             <label for="guest_name" class="form__label">Full Name *</label>
             <input type="text" id="guest_name" class="form__input" required>
           </div>
-          
+
           <div class="form__group">
             <label for="guest_email" class="form__label">Email *</label>
             <input type="email" id="guest_email" class="form__input" required>
           </div>
-          
+
           <div class="form__group">
             <label for="guest_phone" class="form__label">Phone *</label>
             <input type="tel" id="guest_phone" class="form__input" required>
           </div>
-          
+
           <h4 class="section__subtitle">Shipping Address</h4>
-          
+
           <div class="form__group">
             <label for="guest_address_line1" class="form__label">Address Line 1 *</label>
             <input type="text" id="guest_address_line1" class="form__input" required>
           </div>
-          
+
           <div class="form__group">
             <label for="guest_address_line2" class="form__label">Address Line 2</label>
             <input type="text" id="guest_address_line2" class="form__input">
           </div>
-          
+
           <div class="form__group grid-2">
             <div>
               <label for="guest_city" class="form__label">City *</label>
               <input type="text" id="guest_city" class="form__input" required>
             </div>
-            
+
             <div>
               <label for="guest_state" class="form__label">State *</label>
               <input type="text" id="guest_state" class="form__input" required>
             </div>
           </div>
-          
+
           <div class="form__group grid-2">
             <div>
               <label for="guest_pincode" class="form__label">Postal Code *</label>
               <input type="text" id="guest_pincode" class="form__input" required>
             </div>
-            
+
             <div>
               <label for="guest_country" class="form__label">Country *</label>
               <input type="text" id="guest_country" class="form__input" value="India" required>
@@ -263,17 +268,24 @@
           </div>
         </div>
       `;
-      
-      // Add event listener for pincode to calculate shipping
+
+      // Inject guest form into collapse content
+      const collapseContent = billingGroup.querySelector('.checkout__collapse-content');
+      collapseContent.innerHTML = guestFormHTML;
+
+      // Enable billing collapse (mobile)
+      setupBillingCollapse();
+
+      // Pincode → shipping calculation
       const guestPincodeInput = document.getElementById('guest_pincode');
-      guestPincodeInput.addEventListener('blur', function() {
-        selectedPincode = this.value.trim();
-        if (isValidPincode(selectedPincode)) {
-          updateCartTotalsWithPincode(selectedPincode);
+      guestPincodeInput.addEventListener('blur', function () {
+        const pincode = this.value.trim();
+        if (isValidPincode(pincode)) {
+          updateCartTotalsWithPincode(pincode);
         }
       });
-      
-      // Load guest cart data
+
+      // Load guest cart
       loadCartData();
     }
     
@@ -575,7 +587,7 @@
         const planPrice = document.querySelector('input[name="totalAmount"]').value;
         
         // Request to initiate online payment
-        fetch('<?php echo $_ENV['BIBLOPHILE_API_URL']; ?>actions.php?action=paymentRequest', {
+        fetch('<?php echo $_ENV['BIBLOPHILE_API_URL']; ?>payments/request', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -629,7 +641,7 @@
           headers['Authorization'] = 'Bearer ' + accessToken;
         }
 
-        fetch('<?php echo $_ENV['BIBLOPHILE_API_URL']; ?>actions.php?action=paymentSuccessful&linkId=' + linkId, {
+        fetch('<?php echo $_ENV['BIBLOPHILE_API_URL']; ?>payments/success?linkId=' + linkId, {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -739,4 +751,34 @@
       return emailRegex.test(email);
     }
   });
+
+  // ===== Mobile collapsible billing section =====
+function setupBillingCollapse() {
+  const addressSection = document.querySelector('.checkout__address');
+  const toggleBtn = document.querySelector('.checkout__collapse-toggle');
+  const icon = document.querySelector('.collapse__icon');
+
+  if (!addressSection || !toggleBtn) return;
+
+  const isMobile = window.innerWidth <= 768;
+
+  // Remove previous handler if any
+  toggleBtn.onclick = null;
+
+  if (isMobile) {
+    addressSection.classList.remove('active');
+    toggleBtn.setAttribute('aria-expanded', 'false');
+    icon.textContent = '+';
+  } else {
+    addressSection.classList.add('active');
+    toggleBtn.setAttribute('aria-expanded', 'true');
+    icon.textContent = '−';
+  }
+
+  toggleBtn.onclick = () => {
+    const expanded = addressSection.classList.toggle('active');
+    toggleBtn.setAttribute('aria-expanded', expanded);
+    icon.textContent = expanded ? '−' : '+';
+  };
+}
 </script>
