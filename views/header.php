@@ -9,7 +9,7 @@ $is_logged_in = isset($_COOKIE['user_session']) && !empty($_COOKIE['user_session
     <?php generateMetaTags($pageData); ?>
 
     <!-- Set the base URL dynamically depending on local or live environment -->
-    <base href="<?php echo (isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST'] == 'localhost') ? '/biblo shop/biblo-shop/' : '/'; ?>">
+    <base href="<?php $is_local = isset($_SERVER['HTTP_HOST']) && in_array($_SERVER['HTTP_HOST'], ['localhost', '127.0.0.1']); echo $is_local ? '/Salty-Lameon-Shop/' : '/'; ?>">
 
     <!--=============== FLATICON ===============-->
     <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/uicons-regular-straight/css/uicons-regular-straight.css" />
@@ -37,8 +37,15 @@ $is_logged_in = isset($_COOKIE['user_session']) && !empty($_COOKIE['user_session
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-PMC7KDVW"
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <!-- End Google Tag Manager (noscript) -->
-  <?php if ($current_page !== 'home'): ?>
     <!--=============== HEADER ===============-->
+    <!-- for wavePath used in home.css to provide wave-y effect to the banner's bottom -->
+    <svg width="0" height="0" style="position:absolute;">
+      <defs>
+        <clipPath id="wavePath" clipPathUnits="objectBoundingBox">
+          <path d="M0,0 H1 V0.8 C0.85,0.95 0.65,0.75 0.5,0.85 C0.35,0.95 0.15,0.75 0,0.85 V0 Z" />
+        </clipPath>
+      </defs>
+    </svg>
     <header class="header">
       <!-- <div class="header__top">
         <div class="header__container container">
@@ -141,7 +148,14 @@ $is_logged_in = isset($_COOKIE['user_session']) && !empty($_COOKIE['user_session
         </div>
       </nav>
     </header>
-    <?php endif; ?>
+
+    <!-- Banner Section -->
+    <section class="banner">
+      <div class="banner__image-container">
+        <img src="https://ik.imagekit.io/umjnzfgqh/shop/common_assets/banners/banner.jpeg" alt="Banner Image" class="banner__image banner__image--small">
+        <img src="https://ik.imagekit.io/umjnzfgqh/shop/common_assets/banners/banner-large.png" alt="Banner Image" class="banner__image banner__image--large">
+      </div>
+    </section>
 
     <!-- Make sure this is added before any script that uses CartSystem -->
     <script>

@@ -1,6 +1,16 @@
 @import url("./styles.css");
 
 /*=============== HEADER & NAV ===============*/
+.header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 100;
+  backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.25);
+}
+
 .header__top {
     background-color: var(--first-color-alt);
     border-bottom: 1px solid var(--first-color);
@@ -149,6 +159,35 @@
     font-weight: var(--weight-700);
   }
 
+  /* Banner Section */
+.banner {
+    position: relative;
+    width: 100vw;
+    height: 100%;
+    clip-path: url(#wavePath);
+    -webkit-clip-path: url(#wavePath); /* This creates the wave effect at the bottom */
+  }
+  
+  .banner__image-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .banner__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .banner__image--small {
+    display: none;
+  }
+  
+  .banner__image--large {
+    display: block;
+  }
+
   /* For large devices */
   @media screen and (max-width: 1200px) {
     .header__top {
@@ -222,5 +261,16 @@
   
     .header__action-btn img {
       width: 21px;
+    }
+  }
+
+  /* For small devices */
+  @media screen and (max-width: 576px) {
+    .banner__image--large {
+      display: none;
+    }
+    
+    .banner__image--small {
+      display: block;
     }
   }
