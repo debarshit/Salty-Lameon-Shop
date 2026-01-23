@@ -130,7 +130,7 @@ document.getElementById('loginForm').addEventListener('submit', function(event) 
 
     const data = { email, pass: password };
 
-    const endpoint = '<?php echo $_ENV["BIBLOPHILE_API_URL"]; ?>' + 'actions.php?action=userLogin';
+    const endpoint = '<?php echo $_ENV["BIBLOPHILE_API_URL"]; ?>' + 'auth/login';
   
     fetch(endpoint, {
       method: 'POST',
@@ -219,7 +219,7 @@ document.getElementById('signupForm').addEventListener('submit', function(event)
 
     const data = { name, userName, email, phone, password, signupPassCnf, source: referral };
 
-    const endpoint = '<?php echo $_ENV["BIBLOPHILE_API_URL"]; ?>' + 'actions.php?action=userSignup';
+    const endpoint = '<?php echo $_ENV["BIBLOPHILE_API_URL"]; ?>' + 'auth/signup';
   
     fetch(endpoint, {
       method: 'POST',
@@ -256,7 +256,7 @@ document.getElementById('signupForm').addEventListener('submit', function(event)
     const email = document.getElementById('loginEmail').value; // Get the email from the login form
 
     if (email) {
-      fetch('<?php echo $_ENV["BIBLOPHILE_API_URL"]; ?>' + 'actions.php?action=forgotPassword', {
+      fetch('<?php echo $_ENV["BIBLOPHILE_API_URL"]; ?>' + 'auth/forgot-password', {
         method: 'POST',
         body: JSON.stringify({ email: email }),
         headers: {

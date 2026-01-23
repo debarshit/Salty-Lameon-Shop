@@ -48,7 +48,7 @@
                 $refreshToken = $userSession['refreshToken'];
                 
                 // Step 2: Make the API request to log out
-                $url = $_ENV['BIBLOPHILE_API_URL'].'actions.php?action=logout';
+                $url = $_ENV['BIBLOPHILE_API_URL'].'auth/logout';
                 $data = json_encode(['refreshToken' => $refreshToken]);
 
                 $ch = curl_init($url);

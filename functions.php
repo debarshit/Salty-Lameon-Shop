@@ -522,7 +522,7 @@ function getAccessTokenFromSession() {
 
 // Function to fetch user details from the database
 function fetchUserDetails() {
-    $url = $_ENV['BIBLOPHILE_API_URL'].'actions.php?action=fetchUserData';
+    $url = $_ENV['BIBLOPHILE_API_URL'].'users/me';
 
     $accessToken = getAccessTokenFromSession();
 
@@ -534,24 +534,25 @@ function fetchUserDetails() {
         'Content-Type: application/json',
         'Authorization: Bearer ' . $accessToken
     ]);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([]));
-
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
 
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE); 
     curl_close($ch);
 
+    echo $response;
+
     if ($httpCode == 200) {
         $responseData = json_decode($response, true);
 
-        if (isset($responseData['message']) && $responseData['message'] == 1) {
-            return [
-                'name' => $responseData['name'],
-                'email' => $responseData['email'],
-                'phone' => $responseData['phone'],
-                'address' => $responseData['address'],
-                'sourceReferral' => $responseData['sourceReferral']
+        if (isset($responseData['data'])) {
+             return [
+                'name' => $responseData['data']['name'] ?? null,
+                'userName' => $responseData['data']['userName'] ?? null,
+                'email' => $responseData['data']['email'] ?? null,
+                'phone' => $responseData['data']['phone'] ?? null,
+                'address' => $responseData['data']['address'] ?? null,
+                'sourceReferral' => $responseData['data']['sourceReferral'] ?? null,
             ];
         } else {
             return [
@@ -567,7 +568,7 @@ function fetchUserDetails() {
 
 // Function to fetch user details from the database
 function updateUserData($property, $value) {
-    $url = $_ENV['BIBLOPHILE_API_URL'].'actions.php?action=updateUserData';
+    $url = $_ENV['BIBLOPHILE_API_URL'].'users/update';
 
     $accessToken = getAccessTokenFromSession();
 
@@ -933,7 +934,7 @@ function displayCheckoutTable($displayTable = true, $guestCartJson = null) {
                         echo '<tr>';
                         echo '<td><img src="' . htmlspecialchars($imagesToDisplay[0]) . '&tr=h-100,w-100" alt="' . htmlspecialchars($productName) . '" class="order__img" /></td>';
                         echo '<td>';
-                        echo '<a href="details/' .$productId. '/' .str_replace('+', '%20', urlencode(str_replace(' ', '-', $productName))). '"><h3 class="table__title">' . htmlspecialchars($productName) . '</h3></a>';
+                        echo '<a href="details/' .$productId. '/' .str_replace('+', '%20', urlencode(str_replace(' ', '-', $productName))). '"><p class="table__title">' . htmlspecialchars($productName) . '</p></a>';
                         echo '<p class="table__quantity">x ' . $quantity . '</p>';
                         if ($customization !== 'null') {
                             echo '<p class="table__description">Customization: ' . $customization . '</p>';
@@ -1010,7 +1011,7 @@ function displayCheckoutTable($displayTable = true, $guestCartJson = null) {
                             echo '<tr>';
                             echo '<td><img src="' . htmlspecialchars($imageSrc) . '" alt="' . htmlspecialchars($productName) . '" class="order__img" /></td>';
                             echo '<td>';
-                            echo '<a href="details/' . $productId . '/' . str_replace('+', '%20', urlencode(str_replace(' ', '-', $productName))) . '"><h3 class="table__title">' . htmlspecialchars($productName) . '</h3></a>';
+                            echo '<a href="details/' . $productId . '/' . str_replace('+', '%20', urlencode(str_replace(' ', '-', $productName))) . '"><p class="table__title">' . htmlspecialchars($productName) . '</p></a>';
                             echo '<p class="table__quantity">x ' . $quantity . '</p>';
                             if ($customization) {
                                 echo '<p class="table__description">Customization: ' . htmlspecialchars($customization) . '</p>';
