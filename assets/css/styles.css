@@ -7,18 +7,19 @@
 
   /*========== Colors ==========*/
   /* Color mode HSL(hue, saturation, lightness) */
-  --first-color: hsl(176, 88%, 27%);
-  --first-color-alt: hsl(129, 44%, 94%);
-  --second-color: hsl(34, 94%, 87%);
+  --first-color: #B8C6DE;
+  --first-color-alt: #B8C6DE;
+  --second-color: #FFC22F;
   --title-color: hsl(0, 0%, 13%);
   --text-color: hsl(154, 13%, 32%);
   --text-color-light: hsl(60, 1%, 56%);
-  --body-color: #DCDFD6;
+  --body-color: #F6EFE0;
   --container-color: hsl(0, 0%, 93%);
-  --border-color: hsl(129, 36%, 85%);
-  --border-color-alt: hsl(113, 15%, 90%);
-  --yellow-color: #7C8C76;
-  --red-color: #880002;
+  --border-color: #B8C6DE;
+  --border-color-alt: #B8C6DE;
+  --yellow-color: #B8C6DE;
+  --red-color: #000;
+  --black-color: #000;
 
 
   /*========== Font and typography ==========*/
@@ -167,7 +168,7 @@ table {
 }
 
 .new__price {
-  color: var(--text-color-light);
+  color: var(--first-color);
   font-weight: var(--weight-600);
 }
 
@@ -318,14 +319,14 @@ table {
   content: '';
   top: -2px;
   border: .5rem solid transparent;
-  border-top-color: var(--yellow-color);
+  border-top-color: var(--border-color);
 
 }
 
 .action__btn::after {
   content: attr(aria-label);
   bottom: 100%;
-  background-color: var(--yellow-color);
+  background-color: var(--border-color);
   color: var(--body-color);
   font-size: var(--small-font-size);
   white-space: nowrap;

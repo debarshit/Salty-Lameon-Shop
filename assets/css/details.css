@@ -158,7 +158,7 @@
   }
   
   .detail__tab.active-tab {
-    color: var(--yellow-color);
+    color: var(--black-color);
   }
   
   .details__tab-content:not(.active-tab) {
