@@ -1,5 +1,4 @@
 <?php
-$current_page = isset($_GET['page']) ? $_GET['page'] : 'home';
 $is_logged_in = isset($_COOKIE['user_session']) && !empty($_COOKIE['user_session']);
 ?>
 
@@ -68,10 +67,6 @@ $is_logged_in = isset($_COOKIE['user_session']) && !empty($_COOKIE['user_session
       </div> -->
 
       <nav class="nav container">
-        <a href="index.php" class="nav__logo">
-          <img src="assets/img/logo.svg" alt="" class="nav__logo-img">
-        </a>
-
         <div class="nav__menu" id="nav-menu">
           <div class="nav__menu-top">
             <a href="index.php" class="nav__menu-logo">
