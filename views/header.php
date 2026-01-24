@@ -1,4 +1,5 @@
 <?php
+$current_page = isset($_GET['page']) ? $_GET['page'] : 'home';
 $is_logged_in = isset($_COOKIE['user_session']) && !empty($_COOKIE['user_session']);
 ?>
 
@@ -145,12 +146,14 @@ $is_logged_in = isset($_COOKIE['user_session']) && !empty($_COOKIE['user_session
     </header>
 
     <!-- Banner Section -->
+     <?php if ($current_page == 'home' || $current_page == 'shop'): ?>
     <section class="banner">
       <div class="banner__image-container">
         <img src="https://ik.imagekit.io/umjnzfgqh/shop/common_assets/banners/banner.jpeg" alt="Banner Image" class="banner__image banner__image--small">
         <img src="https://ik.imagekit.io/umjnzfgqh/shop/common_assets/banners/banner-large.png" alt="Banner Image" class="banner__image banner__image--large">
       </div>
     </section>
+    <?php endif; ?>
 
     <!-- Make sure this is added before any script that uses CartSystem -->
     <script>

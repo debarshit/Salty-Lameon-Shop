@@ -1,15 +1,14 @@
 @import url("./styles.css");
 
 /*=============== HEADER & NAV ===============*/
-/* .header {
+.header {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   z-index: 100;
-  backdrop-filter: blur(6px);
-  background: rgba(0, 0, 0, 0.25);
-} */
+  background: transparent;
+}
 
 .header__top {
   background-color: var(--first-color-alt);
@@ -182,6 +181,33 @@ font-size: small;
 .nav__link:hover {
   color: var(--yellow-color);
   font-weight: var(--weight-700);
+}
+
+/*=============== Overlay actions container ===============*/
+.header__user-actions {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+}
+
+/* Cart icon stays on right */
+.header__action-btn {
+  position: relative;
+}
+
+/* Hamburger on left */
+.nav__toggle {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+}
+
+/* ask rashmi whether background is required */
+.nav__toggle,
+.header__action-btn {
+  background: rgba(0,0,0,0.4);
+  padding: 0.5rem;
+  border-radius: 50%;
 }
 
 /* Banner Section */
