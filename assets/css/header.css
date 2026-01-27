@@ -59,8 +59,8 @@
   position: fixed;
   left: -100%;
   top: 0;
-  max-width: 400px;
-  width: 100%;
+  max-width: 300px;
+  width: 70%;
   height: 100%;
   padding: 1.25rem 2rem;
   background-color: var(--body-color);
@@ -200,14 +200,6 @@ font-size: small;
   position: fixed;
   top: 1rem;
   left: 1rem;
-}
-
-/* ask rashmi whether background is required */
-.nav__toggle,
-.header__action-btn {
-  background: rgba(0,0,0,0.4);
-  padding: 0.5rem;
-  border-radius: 50%;
 }
 
 /* Banner Section */
