@@ -28,7 +28,7 @@
                 setcookie('user_session', $data['cookieValue'], [
                     'expires' => time() + (86400 * 7),  // 7 days
                     'path' => '/',
-                    'domain' => $_ENV['APP_ENV'] === "production" ? ".biblophile.com" : null,
+                    'domain' => $_ENV['APP_ENV'] === "production" ? ".thesaltylameon.com" : null,
                     // 'secure' => ($_SERVER['HTTPS'] ?? false) === 'on',  // Only send cookie over HTTPS
                     'httponly' => true,
                     'samesite' => 'Lax',
@@ -61,7 +61,7 @@
     setcookie('user_session', '', [
         'expires' => time() - 3600,
         'path' => '/',
-        'domain' => $_ENV['APP_ENV'] === 'production' ? '.biblophile.com' : null,
+        'domain' => $_ENV['APP_ENV'] === 'production' ? '.thesaltylameon.com' : null,
         // 'secure' => ($_SERVER['HTTPS'] ?? false) === 'on',
         'httponly' => true,
         'samesite' => 'Lax',
@@ -963,7 +963,6 @@
         $data = json_decode(file_get_contents("php://input"), true);
 
         $name       = trim($data['name'] ?? '');
-        $userName   = trim($data['userName'] ?? '');
         $email      = trim($data['email'] ?? '');
         $phone      = trim($data['phone'] ?? '');
         $password   = $data['password'] ?? '';
@@ -998,7 +997,6 @@
 
         createUser([
             'name' => $name,
-            'userName' => $userName,
             'email' => $email,
             'phone' => $phone,
             'password' => $password, // hash later
