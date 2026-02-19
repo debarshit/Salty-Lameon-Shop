@@ -275,13 +275,12 @@ table {
 
 .product__images {
   display: block;
-  /* overflow: hidden; */
-  border-radius: 1.25rem;
 }
 
 .product__img {
   vertical-align: middle;
   transition: all 1.5s var(--transition);
+  border-radius: 1.25rem;
 }
 
 .product__img.hover {

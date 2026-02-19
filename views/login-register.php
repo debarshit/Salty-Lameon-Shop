@@ -129,10 +129,8 @@ document.getElementById('loginForm').addEventListener('submit', function(event) 
     const returnUrl = urlParams.get('returnUrl') || document.referrer || '/';
 
     const data = { email, pass: password };
-
-    const endpoint = '<?php echo $_ENV["BIBLOPHILE_API_URL"]; ?>' + 'auth/login';
   
-    fetch(endpoint, {
+    fetch('actions.php?action=login', {
       method: 'POST',
       body: JSON.stringify(data),
       headers: {
@@ -218,10 +216,8 @@ document.getElementById('signupForm').addEventListener('submit', function(event)
     const referral = this.referral.value;
 
     const data = { name, userName, email, phone, password, signupPassCnf, source: referral };
-
-    const endpoint = '<?php echo $_ENV["BIBLOPHILE_API_URL"]; ?>' + 'auth/signup';
   
-    fetch(endpoint, {
+    fetch('actions.php?action=signup', {
       method: 'POST',
       body: JSON.stringify(data),
     })

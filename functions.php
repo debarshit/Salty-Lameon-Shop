@@ -481,7 +481,7 @@ function calculateShippingChargesByPincode($pincode) {
     }
 
     if ($pincode >= 560001 && $pincode <= 560999) {
-        return 0;
+        return 50;
     }
 
     $nearbyStates = [
@@ -496,11 +496,11 @@ function calculateShippingChargesByPincode($pincode) {
         $end = $range[1];
         
         if ($pincode >= $start && $pincode <= $end) {
-            return 30;
+            return 75;
         }
     }
 
-    return 45;
+    return 100;
 }
 
 // Function to fetch access token from the session cookie

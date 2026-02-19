@@ -74,7 +74,7 @@
         <div class="cart__group grid">
           <div>
             <div class="cart__shipping">
-              <h3 class="section__title">Calculate Shipping (For total < Rs 150)</h3>
+              <h3 class="section__title">Calculate Shipping</h3>
               
               <form action="" class="form grid">
                 <!-- <input type="text" placeholder="State/Country" class="form__input"> -->

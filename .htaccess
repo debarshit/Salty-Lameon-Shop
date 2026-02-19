@@ -2,7 +2,7 @@
 RewriteEngine On
 
 # Redirect clean URLs for pages like home, shop, cart, etc.
-RewriteRule ^(home|login-register|accounts|cart|checkout|shop|portfolio|order-details)/?$ index.php?page=$1 [QSA,L]
+RewriteRule ^(home|login-register|accounts|cart|checkout|shop|order-details|reset-password)/?$ index.php?page=$1 [QSA,L]
 
 # Clean URL for product details page
 # Match URLs like /details/123/product-name

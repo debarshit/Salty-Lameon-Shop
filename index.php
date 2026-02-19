@@ -109,10 +109,6 @@
 
       include("views/login-register.php");
 
-    }else if ($page == 'portfolio') {
-            
-      include("views/portfolio.php");
-        
     }else if ($page == 'order-details') {
             
       include("views/order-details.php");
@@ -145,6 +141,10 @@
     }else if ($page == 'wishlist') {
         
       include("views/wishlist.php");
+        
+    }else if ($page == 'reset-password') {
+        
+      include("views/reset-password.php");
         
     }else {
         

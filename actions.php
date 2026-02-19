@@ -1,6 +1,9 @@
 <?php
 
     include("functions.php");
+    require_once 'includes/auth/auth.service.php';
+    require_once 'includes/auth/auth.helper.php';
+    require_once 'includes/mail.helper.php';
 
     if ($_GET['action'] == 'storeSessionCookie') {
         $jsonData = file_get_contents('php://input');
@@ -40,52 +43,36 @@
         }
     }
 
-    if ($_GET['action'] == 'deleteSessionCookie') {
-        // Step 1: Extract and parse the refreshToken from the cookie
-        if (isset($_COOKIE['user_session'])) {
-            $userSession = json_decode(base64_decode($_COOKIE['user_session']), true);
-            if (isset($userSession['refreshToken'])) {
-                $refreshToken = $userSession['refreshToken'];
-                
-                // Step 2: Make the API request to log out
-                $url = $_ENV['BIBLOPHILE_API_URL'].'auth/logout';
-                $data = json_encode(['refreshToken' => $refreshToken]);
+    if ($_GET['action'] === 'deleteSessionCookie') {
+    header('Content-Type: application/json');
 
-                $ch = curl_init($url);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-                curl_setopt($ch, CURLOPT_POST, true);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-
-                $response = curl_exec($ch);
-                curl_close($ch);
-
-                // Step 3: Handle the response
-                $responseData = json_decode($response, true);
-
-                if (isset($responseData['message']) && $responseData['message'] === 'Logged out successfully.') {
-                    // Step 4: If logout is successful, delete the cookie
-                    setcookie('user_session', '', [
-                        'expires' => time() - 3600,
-                        'path' => '/',
-                        'domain' => $_ENV['APP_ENV'] === "production" ? ".biblophile.com" : null,
-                        // 'secure' => ($_SERVER['HTTPS'] ?? false) === 'on',
-                        'httponly' => true,
-                        'samesite' => 'Lax',
-                    ]);
-
-                    // Optionally, you can redirect the user after successful logout
-                    echo json_encode(['success' => true, 'message' => 'Logged out successfully.']);
-                } else {
-                    echo json_encode(['success' => false, 'message' => 'Logout failed.']);
-                }
-            } else {
-                echo json_encode(['success' => false, 'message' => 'No refresh token found in the session cookie.']);
-            }
-        } else {
-            echo json_encode(['success' => false, 'message' => 'No user session found.']);
-        }
+    if (!isset($_COOKIE['user_session'])) {
+        echo json_encode(['success' => true, 'message' => 'Already logged out.']);
+        exit;
     }
+
+    $session = json_decode(base64_decode($_COOKIE['user_session']), true);
+
+    if (!empty($session['refreshToken'])) {
+        deleteRefreshToken($session['refreshToken']);
+    }
+
+    // Delete cookie
+    setcookie('user_session', '', [
+        'expires' => time() - 3600,
+        'path' => '/',
+        'domain' => $_ENV['APP_ENV'] === 'production' ? '.biblophile.com' : null,
+        // 'secure' => ($_SERVER['HTTPS'] ?? false) === 'on',
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Logged out successfully.'
+    ]);
+    exit;
+}
 
     if ($_GET['action'] == 'fetchProductIds') {
         $offset = $_GET['offset'] ?? 0;
@@ -889,7 +876,7 @@
                          $shippingCharge = calculateShippingChargesByPincode($pincode); // Assuming this function exists
                      } else {
                          // Try to get pincode from user's default address if available
-                         $addresses = fetchUserAddresses($userId); // Assuming this function exists and takes userId
+                         $addresses = fetchUserAddresses(); // Assuming this function exists and takes userId
                          if (!empty($addresses)) {
                              $shippingCharge = calculateShippingChargesByPincode($addresses[0]['PostalCode']);
                          }
@@ -920,5 +907,141 @@
         } else {
             echo '<tr><td colspan="6">Error: Guest cart data not provided.</td></tr>';
         }
+    }
+
+    if ($_GET['action'] === 'login') {
+        header('Content-Type: application/json');
+
+        $data = json_decode(file_get_contents("php://input"), true);
+
+        $email = trim($data['email'] ?? '');
+        $pass  = $data['pass'] ?? '';
+
+        if (!$email || !$pass) {
+            echo json_encode(['message' => 'Email and password are required']);
+            exit;
+        }
+
+        if (!validateEmail($email)) {
+            echo json_encode(['message' => 'Please enter a valid email address']);
+            exit;
+        }
+
+        $user = findUserByEmail($email);
+        if (!$user) {
+            echo json_encode(['message' => 'Invalid email or password']);
+            exit;
+        }
+
+        // ⚠️ Replace with password_verify once hashed
+        if ($pass !== $user['userPassword']) {
+            echo json_encode(['message' => 'Incorrect password']);
+            exit;
+        }
+
+        $payload = buildTokenPayload($user);
+        $accessToken  = generateAccessToken($payload);
+        $refreshToken = generateRefreshToken($user['userId']);
+
+        echo json_encode([
+            'message' => 1,
+            'accessToken' => $accessToken,
+            'refreshToken' => $refreshToken,
+            'userId' => $user['userId'],
+            'fullName' => $user['name'],
+            'name' => $user['userName'],
+            'phone' => $user['userPhone'],
+            'email' => $user['userEmail'],
+            'role' => $user['role'],
+        ]);
+        exit;
+    }
+
+    if ($_GET['action'] === 'signup') {
+        header('Content-Type: application/json');
+
+        $data = json_decode(file_get_contents("php://input"), true);
+
+        $name       = trim($data['name'] ?? '');
+        $userName   = trim($data['userName'] ?? '');
+        $email      = trim($data['email'] ?? '');
+        $phone      = trim($data['phone'] ?? '');
+        $password   = $data['password'] ?? '';
+        $confirmPwd = $data['signupPassCnf'] ?? '';
+        $source     = $data['source'] ?? null;
+
+        if (!$name || !$userName || !$email || !$password || !$confirmPwd) {
+            echo json_encode(['message' => 'All fields are required']);
+            exit;
+        }
+
+        if (!validateUsername($userName)) {
+            echo json_encode(['message' => 'Username can only contain letters, numbers, and underscores']);
+            exit;
+        }
+
+        if (!validateEmail($email)) {
+            echo json_encode(['message' => 'Please enter a valid email address']);
+            exit;
+        }
+
+        if ($password !== $confirmPwd) {
+            echo json_encode(['message' => 'Passwords do not match']);
+            exit;
+        }
+
+        $exists = checkUserExists($email, $phone, $userName);
+        if ($exists['exists']) {
+            echo json_encode(['message' => "That {$exists['reason']} is already taken"]);
+            exit;
+        }
+
+        createUser([
+            'name' => $name,
+            'userName' => $userName,
+            'email' => $email,
+            'phone' => $phone,
+            'password' => $password, // hash later
+            'sourceReferral' => $source
+        ]);
+
+        echo json_encode(['message' => 1]);
+        exit;
+    }
+
+    if ($_GET['action'] === 'forgotPassword') {
+        header('Content-Type: application/json');
+
+        $data = json_decode(file_get_contents("php://input"), true);
+        $email = trim($data['email'] ?? '');
+
+        if (!$email || !validateEmail($email)) {
+            echo json_encode(['message' => 'A valid email is required.']);
+            exit;
+        }
+
+        $user = findUserByEmail($email);
+        if (!$user) {
+            echo json_encode(['message' => 'No user found with that email address.']);
+            exit;
+        }
+
+        $token = generateResetToken();
+        $saved = saveResetToken($email, $token);
+
+        if (!$saved) {
+            echo json_encode(['message' => 'There was an issue! Please try again.']);
+            exit;
+        }
+
+        try {
+            sendPasswordResetEmail($email, $token);
+        } catch (Exception $e) {
+            echo json_encode(['message' => 'Failed to send password reset email.']);
+            exit;
+        }
+
+        echo json_encode(['message' => 'Reset link has been sent to your email']);
+        exit;
     }
 ?>
