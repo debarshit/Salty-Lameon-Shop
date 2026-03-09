@@ -199,7 +199,7 @@
   width: 32px;
   height: 32px;
   object-fit: contain;
-  animation: addToCartAnimation 0.8s ease-out forwards;
+  animation: addToCartAnimation 1.0s ease-out forwards;
   z-index: 1000;
   pointer-events: none;
   transform: translate(-50%, -50%);

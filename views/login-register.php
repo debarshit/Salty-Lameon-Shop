@@ -235,11 +235,15 @@ document.getElementById('signupForm').addEventListener('submit', function(event)
         //show a success message
         messageContainer.textContent = 'Signup successful! Welcome aboard.';
         messageContainer.style.color = 'green'; 
+        signupBtn.disabled = false;
+        signupBtn.textContent = "Register";
       } else {
         console.log('Signup failed:', data.message);
         //show error message
         messageContainer.textContent = 'Signup failed: ' + data.message;
-        messageContainer.style.color = 'red'; 
+        messageContainer.style.color = 'red';
+        signupBtn.disabled = false;
+        signupBtn.textContent = "Register";
       }
     })
     .catch(error => {
@@ -247,6 +251,8 @@ document.getElementById('signupForm').addEventListener('submit', function(event)
       //show error message
       messageContainer.textContent = 'An error occurred: ' + error.message;
       messageContainer.style.color = 'red';
+      signupBtn.disabled = false;
+      signupBtn.textContent = "Register";
     });
   });
 

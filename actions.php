@@ -1140,6 +1140,7 @@
 
     if ($_GET['action'] == "paymentSuccessful")       
     {
+        global $shopLink;
         $request_body = file_get_contents('php://input'); // For axios input
         $input = json_decode($request_body, true);
 
@@ -1176,29 +1177,38 @@
 
         // Check if payment is successful
         if ($responseData['link_status'] == "PAID") {
-            //database storage of payment copy from biblo
-            // Insert data into Payments table
-            // if ($custPhone) {
-            //     $checkQuery = "SELECT COUNT(*) FROM Payments WHERE LinkId = ?";
-            //     $stmtCheck = mysqli_prepare($shopLink, $checkQuery);
-            //     mysqli_stmt_bind_param($stmtCheck, 's', $_GET['linkId']);
-            //     mysqli_stmt_execute($stmtCheck);
-            //     mysqli_stmt_bind_result($stmtCheck, $count);
-            //     mysqli_stmt_fetch($stmtCheck);
-            //     mysqli_stmt_close($stmtCheck);
-            
-            //     if ($count == 0) {
-            //         $insertQuery = "INSERT INTO Payments (LinkId, UserId, UserPhone, Amount) VALUES (?, ?, ?, ?)";
-            //         $stmt = mysqli_prepare($shopLink, $insertQuery);
-            //         mysqli_stmt_bind_param($stmt, 'sisd', $_GET['linkId'], $custId, $custPhone, $amount);
-            //         mysqli_stmt_execute($stmt);
-            //         mysqli_stmt_close($stmt);
-            //     }
-            // }
+             if ($custPhone) {
+                // Step 1: Check if payment already exists
+                $checkQuery = "SELECT COUNT(*) FROM payments WHERE LinkId = ?";
+                $stmtCheck = mysqli_prepare($shopLink, $checkQuery);
 
-            // Update the payment status in database yet to do
-            //if orderPayment update status in orders table
-            //if subscriptionPayment update status in subscriptions table
+                mysqli_stmt_bind_param($stmtCheck, "s", $_GET['linkId']);
+                mysqli_stmt_execute($stmtCheck);
+
+                mysqli_stmt_bind_result($stmtCheck, $count);
+                mysqli_stmt_fetch($stmtCheck);
+
+                mysqli_stmt_close($stmtCheck);
+
+                // Step 2: Insert only if not exists
+                if ($count == 0) {
+                    $insertQuery = "INSERT INTO payments (LinkId, UserId, UserPhone, Amount) 
+                            VALUES (?, ?, ?, ?)";
+                    $stmtInsert = mysqli_prepare($shopLink, $insertQuery);
+
+                    mysqli_stmt_bind_param(
+                        $stmtInsert,
+                        "sisi",
+                        $_GET['linkId'],
+                        $custId,
+                        $custPhone,
+                        $amount
+                    );
+
+                    mysqli_stmt_execute($stmtInsert);
+                    mysqli_stmt_close($stmtInsert);
+                }
+            }
 
             // Payment successful, send the status to frontend
             echo json_encode(["status" => "success. You can close this window."]);

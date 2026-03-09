@@ -113,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
   <?php else: ?>
     <p>
-      You can now <a href="/login-register.php">login</a> with your new password.
+      You can now <a href="/login-register">login</a> with your new password.
     </p>
   <?php endif; ?>
 </div>
