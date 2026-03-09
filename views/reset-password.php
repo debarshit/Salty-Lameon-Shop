@@ -9,7 +9,7 @@ $token = $_GET['token'] ?? '';
 if (!$token) {
     die('Invalid or missing reset token.');
 }
-
+global $shopLink;
 // STEP 1: Validate token
 $stmt = $shopLink->prepare("
     SELECT userId, resetTokenExpiry 
@@ -41,14 +41,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (strlen($password) < 8) {
         $message = 'Password must be at least 8 characters.';
     } else {
-        $hashed = password_hash($password, PASSWORD_BCRYPT);
+        // $hashed = password_hash($password, PASSWORD_BCRYPT);
 
         $stmt = $shopLink->prepare("
             UPDATE users 
-            SET userPassword = ?, resetToken = NULL, resetTokenExpiry = NULL
-            WHERE userId = ?
+            SET UserPassword = ?, resetToken = NULL, ResetTokenExpiry = NULL
+            WHERE UserId = ?
         ");
-        $stmt->bind_param("si", $hashed, $user['userId']);
+        $stmt->bind_param("si", $password, $user['userId']);
         $stmt->execute();
 
         $success = true;
@@ -79,10 +79,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       margin: 10px 0;
     }
     button {
-      width: 100%;
+      width: fit-content;
       padding: 10px;
       background: #222;
-      color: #fff;
       border: none;
       cursor: pointer;
     }

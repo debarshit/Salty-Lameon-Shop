@@ -486,6 +486,8 @@
         // Process payment with guest form data
         processPayment(formData);
       }
+      placeOrderButton.disabled = false;
+      placeOrderButton.textContent = "Place Order";
     }
     
     /**
@@ -713,7 +715,7 @@
           
           // Show success animation
           displaySuccessAnimation(function() {
-            // window.location.href = 'order-confirmation?id=' + data.orderId;
+            // window.location.href = 'order-details?orderId=' + data.orderId;
             window.location.reload();
           });
         } else {

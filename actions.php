@@ -1144,7 +1144,7 @@
         $input = json_decode($request_body, true);
 
         $headers = getallheaders();
-        global $secretKey;
+        $secretKey = 'my_super_secure_secret_key_2026_very_long_random';
         $custId = 0;
 
         // Check if the Authorization header is set

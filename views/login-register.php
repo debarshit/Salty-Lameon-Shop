@@ -193,10 +193,14 @@ document.getElementById('loginForm').addEventListener('submit', function(event) 
         //show error message
         messageContainer.textContent = 'Login failed: ' + data.message;
         messageContainer.style.color = 'red'; 
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Login";
       }
     })
     .catch(error => {
       console.error('Error:', error);
+      loginBtn.disabled = false;
+      loginBtn.textContent = "Login";
     });
   });
 
@@ -253,7 +257,7 @@ document.getElementById('signupForm').addEventListener('submit', function(event)
     const email = document.getElementById('loginEmail').value; // Get the email from the login form
 
     if (email) {
-      fetch('<?php echo $_ENV["BIBLOPHILE_API_URL"]; ?>' + 'auth/forgot-password', {
+      fetch('actions.php?action=forgotPassword', {
         method: 'POST',
         body: JSON.stringify({ email: email }),
         headers: {

@@ -5,7 +5,7 @@ use PHPMailer\PHPMailer\Exception;
 require 'vendor/autoload.php';
 
 function sendPasswordResetEmail($email, $token) {
-    $resetLink = "https://thesaltylameon.com/reset-password.php?token=" . urlencode($token);
+    $resetLink = "https://thesaltylameon.com/reset-password?token=" . urlencode($token);
 
     $mail = new PHPMailer(true);
     $mail->isSMTP();
@@ -13,10 +13,15 @@ function sendPasswordResetEmail($email, $token) {
     $mail->SMTPAuth   = true;
     $mail->Username   = $_ENV['SMTP_USER'];
     $mail->Password   = $_ENV['SMTP_PASS'];
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port       = 587;
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+    $mail->Port       = 465;
 
-    $mail->setFrom('no-reply@thesaltylameon.com', 'Rashmi Ramesh');
+    $mail->Timeout = 15;
+
+$mail->SMTPDebug = 2; 
+$mail->Debugoutput = 'error_log';
+
+    $mail->setFrom('rashmi@thesaltylameon.com', 'Rashmi Ramesh');
     $mail->addAddress($email);
 
     $mail->isHTML(true);
