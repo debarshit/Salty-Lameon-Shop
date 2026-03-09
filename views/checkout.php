@@ -89,8 +89,7 @@
 
               <?php
                 if ($is_logged_in) {
-                  list($checkoutTable, ) = displayCheckoutTable(true,);
-                  echo $checkoutTable;
+                  displayCheckoutTable(true);
                 } else {
                   // We'll use JavaScript to get localStorage and potentially reload
                   echo '<tbody id="guest-checkout-items">';
@@ -468,6 +467,8 @@
       if (isLoggedIn) {
         if (!selectedAddressId) {
           showMessage("Please select an address.", 'error');
+          placeOrderButton.disabled = false;
+          placeOrderButton.textContent = "Place Order";
           return;
         }
         
@@ -560,6 +561,9 @@
     */
     function processPayment(customFormData = null) {
       isRequestInProgress = true;
+
+      // Detect mobile device
+      const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
       
       // If paying online
       if (paymentMethod === 'online') {
@@ -595,12 +599,19 @@
           isRequestInProgress = false;
           
           if (data.link_url) {
-            // Open payment window
-            const paymentWindow = window.open(
-              data.link_url,
-              '_blank',
-              'width=600,height=600'
-            );
+            let paymentWindow = null;
+
+            if (isMobile) {
+              // Redirect on mobile
+              window.location.href = data.link_url;
+            } else {
+              // Popup on desktop
+              paymentWindow = window.open(
+                data.link_url,
+                '_blank',
+                'width=600,height=600'
+              );
+            }
             
             // Start polling payment status
             pollPaymentStatus(
