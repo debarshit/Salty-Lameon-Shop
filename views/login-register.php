@@ -55,14 +55,6 @@
               />
 
               <input 
-                type="text"
-                name="userName"
-                placeholder="Username" 
-                class="form__input"
-                required
-              />
-
-              <input 
                 type="email"
                 name="email"
                 placeholder="Your Email" 
@@ -101,9 +93,8 @@
                   <option value="Social Media">Social Media</option>
                   <option value="Word of Mouth">Friends/Word of Mouth</option>
                   <option value="Online Ads">Online Ads</option>
-                  <option value="App Store">App Store</option>
-                  <option value="Forums or Online Communities">Influencer/Online Communities</option>
-                  <option value="Print Media">Print Media</option>
+                  <option value="Search Engine">Search Engine</option>
+                  <option value="Blog or Article">Blog or Article</option>
                   <option value="Other">Other</option>
               </select>
 
@@ -124,9 +115,14 @@ document.getElementById('loginForm').addEventListener('submit', function(event) 
     const email = this.email.value;
     const password = this.password.value;
 
+    const loginBtn = this.querySelector('button[type="submit"]');
+    loginBtn.disabled = true;
+    const originalText = loginBtn.textContent;
+    loginBtn.textContent = "Logging in...";
+
     //Get the return URL from the query parameter or use the referrer
     const urlParams = new URLSearchParams(window.location.search);
-    const returnUrl = urlParams.get('returnUrl') || document.referrer || '/';
+    const returnUrl = urlParams.get('returnUrl') || document.referrer || '/shop';
 
     const data = { email, pass: password };
   
@@ -182,6 +178,7 @@ document.getElementById('loginForm').addEventListener('submit', function(event) 
               window.location.href = returnUrl;
               });
             }
+            window.location.href = returnUrl;
             // --- End Merge Guest Cart Logic ---
             // Optionally, redirect or show a success message
           } else {
@@ -206,16 +203,20 @@ document.getElementById('loginForm').addEventListener('submit', function(event) 
   /*=============== Signup Submission ===============*/
 document.getElementById('signupForm').addEventListener('submit', function(event) {
     event.preventDefault();
+
+    const signupBtn = this.querySelector('button[type="submit"]');
+    signupBtn.disabled = true;
+    const originalText = signupBtn.textContent;
+    signupBtn.textContent = "Registering...";
   
     const name = this.name.value;
-    const userName = this.userName.value;
     const email = this.email.value;
     const phone = this.phone.value;
     const password = this.password.value;
     const signupPassCnf = this.confirm_password.value;
     const referral = this.referral.value;
 
-    const data = { name, userName, email, phone, password, signupPassCnf, source: referral };
+    const data = { name, email, phone, password, signupPassCnf, source: referral };
   
     fetch('actions.php?action=signup', {
       method: 'POST',

@@ -196,13 +196,13 @@
 
 .add-to-cart-animation {
   position: fixed;
-  width: 20px;
-  height: 20px;
-  background-color: var(--yellow-color);
-  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
   animation: addToCartAnimation 0.8s ease-out forwards;
   z-index: 1000;
   pointer-events: none;
+  transform: translate(-50%, -50%);
 }
 
 /* For large devices */

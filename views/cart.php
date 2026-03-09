@@ -3,17 +3,11 @@
         $addresses = fetchUserAddresses();
         $cartSubtotal = displayCartList(false);
         
-        $shippingCharge = 0;
-        if ($cartSubtotal >= 150) {
-        $shippingCharge = 0;
-        } else if (!empty($addresses)) {
+        $shippingCharge = 50;
         $shippingCharge = calculateShippingChargesByPincode($addresses[0]['PostalCode']);
-        } else {
-        $shippingCharge = 0;
-        }
       } else {
         $cartSubtotal = 0;
-        $shippingCharge = 0;
+        $shippingCharge = 50;
       }
     ?>
     <link rel="stylesheet" href="assets/css/cart.css" />

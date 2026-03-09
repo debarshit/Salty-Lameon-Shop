@@ -209,6 +209,7 @@
 .collapse__icon {
   font-size: 1.5rem;
   font-weight: 700;
+  z-index: 1000;
 }
 
 .checkout__collapse-content {

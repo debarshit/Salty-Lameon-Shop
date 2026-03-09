@@ -1,35 +1,8 @@
 <link rel="stylesheet" href="assets/css/footer.css" />
-<!--=============== NEWSLETTER ===============-->
-    <section class="newsletter section home__newsletter">
-      <div class="newsletter__container container grid">
-        <h3 class="newsletter__title flex">
-          <img 
-            src="assets/img/icon-email.svg" 
-            alt="" 
-            class="newsletter__icon"
-          />
-          Sign up to Newsletter
-        </h3>
-
-        <p class="newsletter__description">
-          ...and receive exclusive discount offers.
-        </p>
-
-        <form class="newsletter__form" id="newsletter-form">
-          <button 
-            type="submit" 
-            class="newsletter__btn"
-          >
-            Subscribe
-          </button>
-        </form>
-      </div>
-    </section>
-    
     <!--=============== FOOTER ===============-->
     <footer class="footer container">
       <div class="footer__bottom">
-        <p class="copyright">&copy; 2025 Biblophile. All rights reserved</p>
+        <p class="copyright">&copy; 2026 The Salty Lameon. All rights reserved</p>
         <div class="footer__social-links flex">
           <a href="https://www.facebook.com/profile.php?id=61559661155321">
             <img 
@@ -64,7 +37,7 @@
           </a>
 
         </div>
-        <span class="designer">Shop by Biblophile</span>
+        <span class="designer">Shop by Rashmi Ramesh</span>
       </div>
     </footer>
 
@@ -76,16 +49,9 @@
 
     <!--=============== MAIN JS ===============-->
     <script src="assets/js/main.js"></script>
-
-    <!--=============== NEWSLETTER SCRIPT ===============-->
-    <script>
-      document.getElementById("newsletter-form").addEventListener("submit", function (e) {
-        e.preventDefault();
-
-        setTimeout(() => {
-          window.open("https://biblophileupdates.substack.com/", "_blank");
-        }, 500);
-      });
-    </script>
   </body>
 </html>
+
+<?php
+ob_end_flush();
+?>

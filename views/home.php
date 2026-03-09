@@ -1,3 +1,6 @@
+<?php
+$artworks = fetchImagesFromImageKit('/artworks');
+?>
 <link rel="stylesheet" href="assets/css/home.css" />
     <!--=============== MAIN ===============-->
     <main class="main">
@@ -5,7 +8,7 @@
         <section class="featured container">
             <div class="featured__grid">
             <div class="featured__item featured__item--large">
-                <img src="https://picsum.photos/800/" alt="Featured">
+                <img src="https://picsum.photos/800" alt="Featured">
                 <div class="contact-infos">
                 <div class="contact-infos__email__section">
                     <i class="ri-mail-line"></i>
@@ -51,42 +54,15 @@
         <section class="portfolio container section">
             <h2 class="section__title">My Artworks</h2>  
             <div class="portfolio__masonry">
-                <div class="portfolio__item">
-                    <img src="https://picsum.photos/400/600" alt="Artwork 1">
-                </div>
-                <div class="portfolio__item">
-                    <img src="https://picsum.photos/400/300" alt="Artwork 2">
-                </div>
-                <div class="portfolio__item">
-                    <img src="https://picsum.photos/400/500" alt="Artwork 3">
-                </div>
-                <div class="portfolio__item">
-                    <img src="https://picsum.photos/400/700" alt="Artwork 4">
-                </div>
-                <div class="portfolio__item">
-                    <img src="https://picsum.photos/400/400" alt="Artwork 5">
-                </div>
-                <div class="portfolio__item">
-                    <img src="https://picsum.photos/400/550" alt="Artwork 6">
-                </div>
-                <div class="portfolio__item">
-                    <img src="https://picsum.photos/400/600" alt="Artwork 1">
-                </div>
-                <div class="portfolio__item">
-                    <img src="https://picsum.photos/400/300" alt="Artwork 2">
-                </div>
-                <div class="portfolio__item">
-                    <img src="https://picsum.photos/400/500" alt="Artwork 3">
-                </div>
-                <div class="portfolio__item">
-                    <img src="https://picsum.photos/400/700" alt="Artwork 4">
-                </div>
-                <div class="portfolio__item">
-                    <img src="https://picsum.photos/400/400" alt="Artwork 5">
-                </div>
-                <div class="portfolio__item">
-                    <img src="https://picsum.photos/400/550" alt="Artwork 6">
-                </div>
+                 <?php if (!empty($artworks)): ?>
+                    <?php foreach ($artworks as $index => $imageUrl): ?>
+                        <div class="portfolio__item">
+                            <img src="<?php echo $imageUrl; ?>" alt="Artwork <?php echo $index + 1; ?>">
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <p>No artworks found.</p>
+                <?php endif; ?>
             </div>
             <div id="lightbox" class="lightbox">
             <span class="lightbox__close">&times;</span>

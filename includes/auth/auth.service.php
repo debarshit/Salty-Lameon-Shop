@@ -4,7 +4,7 @@ require_once 'jwt.helper.php';
 function findUserByEmail($email) {
     global $shopLink;
 
-    $stmt = $shopLink->prepare("SELECT * FROM users WHERE userEmail = ? LIMIT 1");
+    $stmt = $shopLink->prepare("SELECT * FROM users WHERE UserEmail = ? LIMIT 1");
     $stmt->bind_param("s", $email);
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc();
@@ -26,10 +26,10 @@ function generateRefreshToken($userId) {
     return $token;
 }
 
-function checkUserExists($email, $phone, $userName) {
+function checkUserExists($email, $phone) {
     global $shopLink;
 
-    $stmt = $shopLink->prepare("SELECT userId FROM users WHERE userEmail = ? LIMIT 1");
+    $stmt = $shopLink->prepare("SELECT UserId FROM users WHERE UserEmail = ? LIMIT 1");
     $stmt->bind_param("s", $email);
     $stmt->execute();
     if ($stmt->get_result()->num_rows) {
@@ -37,19 +37,12 @@ function checkUserExists($email, $phone, $userName) {
     }
 
     if ($phone) {
-        $stmt = $shopLink->prepare("SELECT userId FROM users WHERE userPhone = ? LIMIT 1");
+        $stmt = $shopLink->prepare("SELECT UserId FROM users WHERE UserPhone = ? LIMIT 1");
         $stmt->bind_param("s", $phone);
         $stmt->execute();
         if ($stmt->get_result()->num_rows) {
             return ['exists' => true, 'reason' => 'phone'];
         }
-    }
-
-    $stmt = $shopLink->prepare("SELECT userId FROM users WHERE userName = ? LIMIT 1");
-    $stmt->bind_param("s", $userName);
-    $stmt->execute();
-    if ($stmt->get_result()->num_rows) {
-        return ['exists' => true, 'reason' => 'username'];
     }
 
     return ['exists' => false];
@@ -67,7 +60,7 @@ function createUser($data) {
     $stmt = $shopLink->prepare("
         INSERT INTO users 
         (name, userEmail, userPhone, userPassword, sourceReferral)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?)
     ");
 
     $stmt->bind_param(

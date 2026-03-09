@@ -4,6 +4,11 @@
     require_once 'includes/auth/auth.service.php';
     require_once 'includes/auth/auth.helper.php';
     require_once 'includes/mail.helper.php';
+    
+    require 'vendor/autoload.php';
+
+  use Firebase\JWT\JWT;
+  use Firebase\JWT\Key;
 
     if ($_GET['action'] == 'storeSessionCookie') {
         $jsonData = file_get_contents('php://input');
@@ -73,6 +78,72 @@
     ]);
     exit;
 }
+    //not sure about its usage whether it is required
+    if ($_GET['action'] == 'refreshToken') {
+        if (!isset($_COOKIE['user_session'])) {
+            http_response_code(401);
+            echo json_encode(['message' => 'No session']);
+            exit;
+        }
+
+        $cookie = json_decode(base64_decode($_COOKIE['user_session']), true);
+
+        $refreshToken = $cookie['refreshToken'];
+
+        global $shopLink;
+
+        $stmt = $shopLink->prepare("
+            SELECT userId, expiresAt
+            FROM user_refresh_tokens
+            WHERE userRefreshToken = ?
+            LIMIT 1
+        ");
+
+        $stmt->bind_param("s", $refreshToken);
+        $stmt->execute();
+
+        $result = $stmt->get_result()->fetch_assoc();
+
+        if (!$result) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Invalid refresh token']);
+            exit;
+        }
+
+        if (strtotime($result['expiresAt']) < time()) {
+            deleteRefreshToken($refreshToken);
+            http_response_code(401);
+            echo json_encode(['message' => 'Refresh token expired']);
+            exit;
+        }
+
+        // fetch user
+        $stmt = $shopLink->prepare("SELECT * FROM users WHERE UserId = ?");
+        $stmt->bind_param("i", $result['userId']);
+        $stmt->execute();
+        $user = $stmt->get_result()->fetch_assoc();
+
+        $payload = buildTokenPayload($user);
+        $newAccessToken = generateAccessToken($payload);
+
+        $cookieValue = base64_encode(json_encode([
+            'accessToken' => $newAccessToken,
+            'refreshToken' => $refreshToken
+        ]));
+
+        setcookie('user_session', $cookieValue, [
+            'expires' => time() + (86400 * 7),
+            'path' => '/',
+            'domain' => $_ENV['APP_ENV'] === "production" ? ".thesaltylameon.com" : null,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+
+        echo json_encode([
+            'success' => true,
+            'accessToken' => $newAccessToken
+        ]);
+    }
 
     if ($_GET['action'] == 'fetchProductIds') {
         $offset = $_GET['offset'] ?? 0;
@@ -95,16 +166,11 @@
     
         $accessToken = getAccessTokenFromSession();
         if (isset($accessToken)) {
-            $url = 'https://shop.biblophile.com/decodeUserId.php?action=decodeUserId&Authorization=' . $accessToken;
-            $response = file_get_contents($url);
-            $decodedResponse = json_decode($response, true);
+            $userId = getUserIdFromAccessToken($accessToken);
     
-            if (isset($decodedResponse['success']) && $decodedResponse['success'] === true) {
-                $userId = $decodedResponse['userId'];
-            } else {
-                $response = ['message' => 'Error: Unable to decode userId.'];
-                echo json_encode($response);
-                exit();
+            if (!$userId) {
+                echo json_encode(['success' => false, 'message' => 'Unable to decode userId. ']);
+                exit;
             }
     
             $productId = $_POST['productId'];
@@ -216,34 +282,38 @@
             echo json_encode(['success' => false, 'message' => 'No access token found.']);
             exit;
         }
-        $url = 'https://shop.biblophile.com/decodeUserId.php?action=decodeUserId&Authorization=' . $accessToken;
-        $response = file_get_contents($url);
-        $decodedResponse = json_decode($response, true);
+
+        $userId = getUserIdFromAccessToken($accessToken);
     
-        if (isset($decodedResponse['success']) && $decodedResponse['success'] === true) {
-            $userId = $decodedResponse['userId'];
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Unable to decode userId. ' . ($decodedResponse['message'] ?? 'Unknown error.')]);
+        if (!$userId) {
+            echo json_encode(['success' => false, 'message' => 'Unable to decode userId. ']);
             exit;
         }
     
         $addressId = $_POST['addressId'] ?? null;
         $receiver = $_POST['receiver'];
+        $phone = $_POST['phone'];
         $addressLine1 = $_POST['addressLine1'];
         $addressLine2 = $_POST['addressLine2'];
         $city = $_POST['city'];
         $state = $_POST['state'];
         $postalCode = $_POST['postalCode'];
         $country = $_POST['country'];
+
+         // Validate phone number (must be exactly 10 digits)
+        if (!preg_match('/^\d{10}$/', $phone)) {
+            echo json_encode(['success' => false, 'message' => 'Phone number must be exactly 10 digits.']);
+            exit;
+        }
     
         if ($addressId) {
             // Update address
-            $stmt = $shopLink->prepare("UPDATE useraddresses SET ReceiverName = ?, AddressLine1 = ?, AddressLine2 = ?, City = ?, State = ?, PostalCode = ?, Country = ? WHERE AddressId = ?");
-            $stmt->bind_param("sssssssi", $receiver, $addressLine1, $addressLine2, $city, $state, $postalCode, $country, $addressId);
+            $stmt = $shopLink->prepare("UPDATE useraddresses SET ReceiverName = ?, Phone = ?, AddressLine1 = ?, AddressLine2 = ?, City = ?, State = ?, PostalCode = ?, Country = ? WHERE AddressId = ?");
+            $stmt->bind_param("ssssssssi", $receiver, $phone, $addressLine1, $addressLine2, $city, $state, $postalCode, $country, $addressId);
         } else {
             // Add new address
-            $stmt = $shopLink->prepare("INSERT INTO useraddresses (UserId, ReceiverName, AddressLine1, AddressLine2, City, State, PostalCode, Country) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("isssssss", $userId, $receiver, $addressLine1, $addressLine2, $city, $state, $postalCode, $country);
+            $stmt = $shopLink->prepare("INSERT INTO useraddresses (UserId, ReceiverName, Phone, AddressLine1, AddressLine2, City, State, PostalCode, Country) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("issssssss", $userId, $receiver, $phone, $addressLine1, $addressLine2, $city, $state, $postalCode, $country);
         }
     
         if ($stmt->execute()) {
@@ -263,14 +333,10 @@
         }
         
         // Decode user ID from access token
-        $url = 'https://shop.biblophile.com/decodeUserId.php?action=decodeUserId&Authorization=' . $accessToken;
-        $response = file_get_contents($url);
-        $decodedResponse = json_decode($response, true);
+        $userId = getUserIdFromAccessToken($accessToken);
     
-        if (isset($decodedResponse['success']) && $decodedResponse['success'] === true) {
-            $userId = $decodedResponse['userId'];
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Unable to decode userId. ' . ($decodedResponse['message'] ?? 'Unknown error.')]);
+        if (!$userId) {
+            echo json_encode(['success' => false, 'message' => 'Unable to decode userId. ']);
             exit;
         }
     
@@ -333,13 +399,11 @@
         $accessToken = getAccessTokenFromSession();
     
         // Decode the user ID using the access token
-        $url = 'https://shop.biblophile.com/decodeUserId.php?action=decodeUserId&Authorization=' . $accessToken;
-        $response = file_get_contents($url);
-        $decodedResponse = json_decode($response, true);
+        $userId = getUserIdFromAccessToken($accessToken);
     
-        if ($decodedResponse['success'] === true) {
-            $userId = $decodedResponse['userId'];
-    
+        if (!$userId) {
+           echo json_encode(['success' => false]);
+        } else {
             // Remove the product from the cart
             $query = "DELETE FROM carts WHERE UserId = ? AND ProductId = ?";
             $stmt = $shopLink->prepare($query);
@@ -352,8 +416,6 @@
             }
     
             $stmt->close();
-        } else {
-            echo json_encode(['success' => false]);
         }
     }
 
@@ -364,61 +426,51 @@
         $accessToken = getAccessTokenFromSession();
         
         // Decode the user ID using the access token
-        $url = 'https://shop.biblophile.com/decodeUserId.php?action=decodeUserId&Authorization=' . $accessToken;
-        $response = file_get_contents($url);
-        $decodedResponse = json_decode($response, true);
-
-        if ($decodedResponse['success'] === true) {
+        $userId = getUserIdFromAccessToken($accessToken);
+    
+        if (!$userId) {
+            echo json_encode(['success' => false]);
+            exit;
+        } else {
             $productId = (int)$_POST['productId'];
             $quantity = (int)$_POST['quantity'];
-    
-            // Decode the user ID using the access token
-            $url = 'https://shop.biblophile.com/decodeUserId.php?action=decodeUserId&Authorization=' . $accessToken;
-            $response = file_get_contents($url);
-            $decodedResponse = json_decode($response, true);
 
-            if ($decodedResponse['success'] === true) {
-                $userId = $decodedResponse['userId'];
+            // Update the cart with the new quantity
+            $query = "UPDATE carts SET Quantity = ? WHERE UserId = ? AND ProductId = ?";
+            $stmt = $shopLink->prepare($query);
+            $stmt->bind_param('iii', $quantity, $userId, $productId);
 
-                // Update the cart with the new quantity
-                $query = "UPDATE carts SET Quantity = ? WHERE UserId = ? AND ProductId = ?";
-                $stmt = $shopLink->prepare($query);
-                $stmt->bind_param('iii', $quantity, $userId, $productId);
+            if ($stmt->execute()) {
+                // Fetch the new subtotal and the total cart value
+                $subtotalQuery = "SELECT p.NewPrice, c.Quantity FROM carts c JOIN products p ON c.ProductId = p.ProductId WHERE c.UserId = ? AND c.ProductId = ?";
+                $subtotalStmt = $shopLink->prepare($subtotalQuery);
+                $subtotalStmt->bind_param('ii', $userId, $productId);
+                $subtotalStmt->execute();
+                $subtotalResult = $subtotalStmt->get_result();
+                $product = $subtotalResult->fetch_assoc();
 
-                if ($stmt->execute()) {
-                    // Fetch the new subtotal and the total cart value
-                    $subtotalQuery = "SELECT p.NewPrice, c.Quantity FROM carts c JOIN products p ON c.ProductId = p.ProductId WHERE c.UserId = ? AND c.ProductId = ?";
-                    $subtotalStmt = $shopLink->prepare($subtotalQuery);
-                    $subtotalStmt->bind_param('ii', $userId, $productId);
-                    $subtotalStmt->execute();
-                    $subtotalResult = $subtotalStmt->get_result();
-                    $product = $subtotalResult->fetch_assoc();
+                $newSubtotal = $product['NewPrice'] * $quantity;
 
-                    $newSubtotal = $product['NewPrice'] * $quantity;
+                // Get the total cart price
+                $cartTotalQuery = "SELECT SUM(p.NewPrice * c.Quantity) AS cartTotal FROM carts c JOIN products p ON c.ProductId = p.ProductId WHERE c.UserId = ?";
+                $cartTotalStmt = $shopLink->prepare($cartTotalQuery);
+                $cartTotalStmt->bind_param('i', $userId);
+                $cartTotalStmt->execute();
+                $cartTotalResult = $cartTotalStmt->get_result();
+                $cartTotal = $cartTotalResult->fetch_assoc()['cartTotal'];
 
-                    // Get the total cart price
-                    $cartTotalQuery = "SELECT SUM(p.NewPrice * c.Quantity) AS cartTotal FROM carts c JOIN products p ON c.ProductId = p.ProductId WHERE c.UserId = ?";
-                    $cartTotalStmt = $shopLink->prepare($cartTotalQuery);
-                    $cartTotalStmt->bind_param('i', $userId);
-                    $cartTotalStmt->execute();
-                    $cartTotalResult = $cartTotalStmt->get_result();
-                    $cartTotal = $cartTotalResult->fetch_assoc()['cartTotal'];
-
-                    echo json_encode([
-                        'success' => true,
-                        'newSubtotal' => $newSubtotal,
-                        'newCartTotal' => $cartTotal
-                    ]);
-                } else {
-                    echo json_encode(['success' => false]);
-                }
-
-                $stmt->close();
-                $subtotalStmt->close();
-                $cartTotalStmt->close();
+                echo json_encode([
+                    'success' => true,
+                    'newSubtotal' => $newSubtotal,
+                    'newCartTotal' => $cartTotal
+                ]);
             } else {
                 echo json_encode(['success' => false]);
             }
+
+            $stmt->close();
+            $subtotalStmt->close();
+            $cartTotalStmt->close();
         }
     }
 
@@ -458,16 +510,13 @@
         $isGuest = isset($_POST['isGuest']) && $_POST['isGuest'] === 'true';
     
         if ($accessToken) {
-            $url = 'https://shop.biblophile.com/decodeUserId.php?action=decodeUserId&Authorization=' . $accessToken;
-            $response = file_get_contents($url);
-            $decodedResponse = json_decode($response, true);
+            $userId = getUserIdFromAccessToken($accessToken);
     
-            if ($decodedResponse['success'] === true) {
-                $userId = $decodedResponse['userId'];
-            } else {
-                echo json_encode(['success' => false, 'message' => 'Error: Unable to decode userId.']);
-                return;
+            if (!$userId) {
+                echo json_encode(['success' => false, 'message' => 'Unable to decode userId. ']);
+                exit;
             }
+    
         }
     
         $paymentStatus = ($_POST['paymentMethod'] == 'online') ? 1 : 0; // 1 for online, 0 for offline
@@ -564,16 +613,11 @@
 
       $accessToken = getAccessTokenFromSession();
       if (isset($accessToken)) {
-        $url = 'https://shop.biblophile.com/decodeUserId.php?action=decodeUserId&Authorization=' . $accessToken;
-        $response = file_get_contents($url);
-        $decodedResponse = json_decode($response, true);
-
-        if (isset($decodedResponse['success']) && $decodedResponse['success'] === true) {
-            $userId = $decodedResponse['userId'];
-        } else {
-            $response = ['message' => 'Error: Unable to decode userId.'];
-            echo json_encode($response);
-            exit();
+        $userId = getUserIdFromAccessToken($accessToken);
+    
+        if (!$userId) {
+            echo json_encode(['success' => false, 'message' => 'Unable to decode userId. ']);
+            exit;
         }
         $productId = $_POST['productId'];
         $rating = $_POST['rating'];
@@ -642,12 +686,9 @@
         $accessToken = getAccessTokenFromSession();
     
         if (isset($accessToken)) {
-            $url = 'https://shop.biblophile.com/decodeUserId.php?action=decodeUserId&Authorization=' . $accessToken;
-            $userResponse = file_get_contents($url);
-            $decodedUserResponse = json_decode($userResponse, true);
+            $userId = getUserIdFromAccessToken($accessToken);
     
-            if (isset($decodedUserResponse['success']) && $decodedUserResponse['success'] === true) {
-                $userId = $decodedUserResponse['userId'];
+            if ($userId) {
                 $guestCartData = json_decode(file_get_contents('php://input'), true); // Get guest cart data sent from JavaScript
     
                 if (is_array($guestCartData)) {
@@ -775,14 +816,12 @@
                     $shippingCharge = 0;
                     $pincode = isset($_POST['pincode']) ? trim($_POST['pincode']) : (isset($_GET['pincode']) ? trim($_GET['pincode']) : null);
 
-                     if ($cartSubtotal >= 150) {
-                        $shippingCharge = 0;
-                    } else if ($pincode) {
-                        $shippingCharge = calculateShippingChargesByPincode($pincode); // Assuming this function exists
+                    if ($pincode) {
+                        $shippingCharge = calculateShippingChargesByPincode($pincode);
                     } else {
                          // Default shipping for guests without pincode? Or prompt for pincode?
                          // For now, let's assume 0 until pincode is provided.
-                         $shippingCharge = 0;
+                         $shippingCharge = 50;
                     }
 
                     $response = [
@@ -813,13 +852,9 @@
         $accessToken = getAccessTokenFromSession(); // Assuming this function exists
 
         if (isset($accessToken)) {
-            $url = 'https://shop.biblophile.com/decodeUserId.php?action=decodeUserId&Authorization=' . $accessToken;
-            $userDataResponse = file_get_contents($url);
-            $decodedUserData = json_decode($userDataResponse, true);
+            $userId = getUserIdFromAccessToken($accessToken);
 
-            if (isset($decodedUserData['success']) && $decodedUserData['success'] === true) {
-                $userId = $decodedUserData['userId'];
-
+            if ($userId) {
                 // Calculate subtotal for logged-in user
                 $cartSubtotal = 0;
                  $query = "
@@ -866,21 +901,17 @@
 
 
                 // Calculate shipping charge
-                $shippingCharge = 0;
+                $shippingCharge = 50;
                 $pincode = isset($_POST['pincode']) ? trim($_POST['pincode']) : (isset($_GET['pincode']) ? trim($_GET['pincode']) : null);
 
-                if ($cartSubtotal >= 150) {
-                    $shippingCharge = 0;
+                if ($pincode) {
+                    $shippingCharge = calculateShippingChargesByPincode($pincode); // Assuming this function exists
                 } else {
-                     if ($pincode) {
-                         $shippingCharge = calculateShippingChargesByPincode($pincode); // Assuming this function exists
-                     } else {
-                         // Try to get pincode from user's default address if available
-                         $addresses = fetchUserAddresses(); // Assuming this function exists and takes userId
-                         if (!empty($addresses)) {
-                             $shippingCharge = calculateShippingChargesByPincode($addresses[0]['PostalCode']);
-                         }
-                     }
+                    // Try to get pincode from user's default address if available
+                    $addresses = fetchUserAddresses(); // Assuming this function exists and takes userId
+                    if (!empty($addresses)) {
+                        $shippingCharge = calculateShippingChargesByPincode($addresses[0]['PostalCode']);
+                    }
                 }
 
                 $response = [
@@ -934,25 +965,24 @@
         }
 
         // ⚠️ Replace with password_verify once hashed
-        if ($pass !== $user['userPassword']) {
+        if ($pass !== $user['UserPassword']) {
             echo json_encode(['message' => 'Incorrect password']);
             exit;
         }
 
         $payload = buildTokenPayload($user);
         $accessToken  = generateAccessToken($payload);
-        $refreshToken = generateRefreshToken($user['userId']);
+        $refreshToken = generateRefreshToken($user['UserId']);
 
         echo json_encode([
             'message' => 1,
             'accessToken' => $accessToken,
             'refreshToken' => $refreshToken,
-            'userId' => $user['userId'],
-            'fullName' => $user['name'],
-            'name' => $user['userName'],
-            'phone' => $user['userPhone'],
-            'email' => $user['userEmail'],
-            'role' => $user['role'],
+            'userId' => $user['UserId'],
+            'fullName' => $user['Name'],
+            'phone' => $user['UserPhone'],
+            'email' => $user['UserEmail'],
+            'role' => $user['Role'],
         ]);
         exit;
     }
@@ -969,13 +999,8 @@
         $confirmPwd = $data['signupPassCnf'] ?? '';
         $source     = $data['source'] ?? null;
 
-        if (!$name || !$userName || !$email || !$password || !$confirmPwd) {
+        if (!$name || !$email || !$password || !$confirmPwd) {
             echo json_encode(['message' => 'All fields are required']);
-            exit;
-        }
-
-        if (!validateUsername($userName)) {
-            echo json_encode(['message' => 'Username can only contain letters, numbers, and underscores']);
             exit;
         }
 
@@ -989,7 +1014,7 @@
             exit;
         }
 
-        $exists = checkUserExists($email, $phone, $userName);
+        $exists = checkUserExists($email, $phone);
         if ($exists['exists']) {
             echo json_encode(['message' => "That {$exists['reason']} is already taken"]);
             exit;
@@ -1041,5 +1066,163 @@
 
         echo json_encode(['message' => 'Reset link has been sent to your email']);
         exit;
+    }
+
+    if ($_GET['action'] === "paymentRequest") {
+
+    header('Content-Type: application/json');
+
+    $request_body = file_get_contents('php://input');
+    $input = json_decode($request_body, true);
+
+    // Generate unique link_id
+    $link_id = 'link_' . time() . '_' . uniqid();
+
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+    $host = $_SERVER['HTTP_HOST'];
+    $basePath = dirname($_SERVER['PHP_SELF']);
+
+    $returnUrl = $protocol . $host . $basePath .
+        "/actions.php?action=paymentSuccessful&linkId=" . $link_id;
+
+    $payload = [
+        "customer_details" => [
+            "customer_phone" => $input['customerPhone'],
+            "customer_name" => $input['customerName']
+        ],
+        "link_notify" => [
+            "send_sms" => true
+        ],
+        "link_meta" => [
+            "return_url" => $returnUrl,
+            "upi_intent" => true,
+            "payment_methods" => "dc,nb,upi"
+        ],
+        "link_id" => $link_id,
+        "link_amount" => $input['amount'],
+        "link_currency" => "INR",
+        "link_purpose" => "SaltyLameon Studios Payment"
+    ];
+
+    $ch = curl_init();
+
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $_ENV['CASHFREE_API_URL'],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => [
+            'accept: application/json',
+            'content-type: application/json',
+            'x-api-version: 2023-08-01',
+            'x-client-id: ' . $_ENV['CASHFREE_CLIENT_ID'],
+            'x-client-secret: ' . $_ENV['CASHFREE_CLIENT_SECRET'],
+        ],
+        CURLOPT_POSTFIELDS => json_encode($payload),
+    ]);
+
+    $response = curl_exec($ch);
+
+    if (curl_errno($ch)) {
+        echo json_encode([
+            "error" => curl_error($ch)
+        ]);
+        curl_close($ch);
+        exit;
+    }
+
+    curl_close($ch);
+
+    $responseData = json_decode($response, true);
+
+    echo json_encode($responseData);
+    exit;
+}
+
+    if ($_GET['action'] == "paymentSuccessful")       
+    {
+        $request_body = file_get_contents('php://input'); // For axios input
+        $input = json_decode($request_body, true);
+
+        $headers = getallheaders();
+        global $secretKey;
+        $custId = 0;
+
+        // Check if the Authorization header is set
+        if (isset($headers['Authorization']) && !empty($headers['Authorization'])) {
+            try {
+                $tokenResult = getUserIdFromToken($headers, $secretKey);
+                $custId = $input['customerId'] ?? $tokenResult['userId'] ?? 0;
+            } catch (Exception $e) {
+                $userId = null;
+            }
+        }
+
+        $custPhone = $input['customerPhone'];
+        $amount = $input['amount'];
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $_ENV['CASHFREE_API_URL'] .'/'. $_GET['linkId']);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'accept: application/json',
+            'x-api-version: 2023-08-01',
+            'x-client-id: '. $_ENV['CASHFREE_CLIENT_ID'],
+            'x-client-secret: '. $_ENV['CASHFREE_CLIENT_SECRET'],
+        ]);
+
+        $response = curl_exec($ch);
+        $responseData = json_decode($response, true);
+
+        // Check if payment is successful
+        if ($responseData['link_status'] == "PAID") {
+            //database storage of payment copy from biblo
+            // Insert data into Payments table
+            // if ($custPhone) {
+            //     $checkQuery = "SELECT COUNT(*) FROM Payments WHERE LinkId = ?";
+            //     $stmtCheck = mysqli_prepare($shopLink, $checkQuery);
+            //     mysqli_stmt_bind_param($stmtCheck, 's', $_GET['linkId']);
+            //     mysqli_stmt_execute($stmtCheck);
+            //     mysqli_stmt_bind_result($stmtCheck, $count);
+            //     mysqli_stmt_fetch($stmtCheck);
+            //     mysqli_stmt_close($stmtCheck);
+            
+            //     if ($count == 0) {
+            //         $insertQuery = "INSERT INTO Payments (LinkId, UserId, UserPhone, Amount) VALUES (?, ?, ?, ?)";
+            //         $stmt = mysqli_prepare($shopLink, $insertQuery);
+            //         mysqli_stmt_bind_param($stmt, 'sisd', $_GET['linkId'], $custId, $custPhone, $amount);
+            //         mysqli_stmt_execute($stmt);
+            //         mysqli_stmt_close($stmt);
+            //     }
+            // }
+
+            // Update the payment status in database yet to do
+            //if orderPayment update status in orders table
+            //if subscriptionPayment update status in subscriptions table
+
+            // Payment successful, send the status to frontend
+            echo json_encode(["status" => "success. You can close this window."]);
+        } else {
+            // Payment not successful
+            echo json_encode(["status" => "failed", "error" => "Payment not successful"]);
+        }
+
+        curl_close($ch);
+    }
+
+    // Function to extract and validate `user` from JWT
+    function getUserIdFromToken($headers, $secretKey) {
+        if (!isset($headers['Authorization'])) {
+            return ['error' => 'Authorization header missing'];
+        }
+
+        $jwt = str_replace('Bearer ', '', $headers['Authorization']);
+
+        try {
+            $decoded = JWT::decode($jwt, new Key($secretKey, 'HS256'));
+            return ['userId' => $decoded->userId];
+        } catch (Exception $e) {
+            return ['error' => 'Invalid token'];
+        }
     }
 ?>

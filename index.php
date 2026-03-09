@@ -28,41 +28,41 @@
     switch ($page) {
         case 'login-register':
             $pageData = [
-                'meta_title' => 'Login / Register - Pages & Palette',
-                'meta_description' => 'Log in or register to start shopping bookish merchandise like bookmarks, stickers, and more at Pages & Palette.',
-                'meta_keywords' => 'login, register, bookmarks, stickers, bookish merchandise, Pages & Palette',
+                'meta_title' => 'Login / Register - The Salty Lameon',
+                'meta_description' => 'Log in or register to start shopping art works like bookmarks, stickers, and more at The Salty Lameon.',
+                'meta_keywords' => 'login, register, bookmarks, stickers, art works, The Salty Lameon',
                 'meta_url' => 'https://shop.biblophile.com/login-register',
             ];
             break;
         case 'accounts':
             $pageData = [
-                'meta_title' => 'My Account - Pages & Palette',
-                'meta_description' => 'Manage your account and order history at Pages & Palette.',
-                'meta_keywords' => 'account, user, orders, bookmarks, stickers, Pages & Palette',
+                'meta_title' => 'My Account - The Salty Lameon',
+                'meta_description' => 'Manage your account and order history at The Salty Lameon.',
+                'meta_keywords' => 'account, user, orders, bookmarks, stickers, The Salty Lameon',
                 'meta_url' => 'https://shop.biblophile.com/accounts',
             ];
             break;
         case 'cart':
             $pageData = [
-                'meta_title' => 'Your Cart - Pages & Palette',
-                'meta_description' => 'Review your cart including bookmarks, stickers, and other fun items at Pages & Palette.',
-                'meta_keywords' => 'cart, shopping, bookmarks, stickers, bookish merch, Pages & Palette',
+                'meta_title' => 'Your Cart - The Salty Lameon',
+                'meta_description' => 'Review your cart including bookmarks, stickers, and other fun items at The Salty Lameon.',
+                'meta_keywords' => 'cart, shopping, bookmarks, stickers, art works, The Salty Lameon',
                 'meta_url' => 'https://shop.biblophile.com/cart',
             ];
             break;
         case 'checkout':
             $pageData = [
-                'meta_title' => 'Checkout - Pages & Palette',
-                'meta_description' => 'Complete your purchase of bookish merchandise like bookmarks, stickers, and more at Pages & Palette..',
-                'meta_keywords' => 'checkout, payment, bookmarks, stickers, bookish merch, Pages & Palette',
+                'meta_title' => 'Checkout - The Salty Lameon',
+                'meta_description' => 'Complete your purchase of products like bookmarks, stickers, and more at The Salty Lameon..',
+                'meta_keywords' => 'checkout, payment, bookmarks, stickers, art works, The Salty Lameon',
                 'meta_url' => 'https://shop.biblophile.com/checkout',
             ];
             break;
         case 'shop':
             $pageData = [
-                'meta_title' => 'Shop Bookish Merchandise - Pages & Palette',
-                'meta_description' => 'Browse our unique collection of bookish merch like bookmarks, stickers, and more at Pages & Palette.',
-                'meta_keywords' => 'shop, bookish merchandise, bookmarks, stickers, Pages & Palette',
+                'meta_title' => 'Shop Art Products - The Salty Lameon',
+                'meta_description' => 'Browse our unique collection of products like bookmarks, stickers, and more',
+                'meta_keywords' => 'shop, bookmarks, stickers, The Salty Lameon',
                 'meta_url' => 'https://shop.biblophile.com/shop',
             ];
             break;
@@ -77,7 +77,7 @@
             $productImage = fetchImagesFromImageKit($productDetails['ProductImage']);
             $productTags = $productDetails['Tags'];
               $pageData = [
-                  'meta_title' => $productName . ' - Pages & Palette',
+                  'meta_title' => $productName . ' - The Salty Lameon',
                   'meta_description' => $productDescription,
                   'meta_keywords' => 'shop, products, ecommerce',
                   'meta_image' => $productImage[0],
@@ -85,9 +85,9 @@
           }
           else {
             $pageData = [
-              'meta_title' => 'Pages & Palette | Biblophile Merchandise Store',
-              'meta_description' => 'Explore a wide range of bookish merch like bookmarks, stickers, and more at Pages & Palette.',
-              'meta_keywords' => 'bookish merchandise, bookmarks, stickers, Pages & Palette',
+              'meta_title' => 'The Salty Lameon',
+              'meta_description' => 'Welcome to The Salty Lameon your shop for art products, and more!.',
+              'meta_keywords' => 'bookish merchandise, bookmarks, stickers, notepads, snail mail',
               'meta_url' => 'https://shop.biblophile.com',
           ];
           }
@@ -95,9 +95,9 @@
         // Add more cases as needed for other pages
         default:
             $pageData = [
-                'meta_title' => 'Pages & Palette | Biblophile Merchandise Store',
-                'meta_description' => 'Welcome to Pages & Palette – your shop for bookish merchandise like bookmarks, stickers, and more!',
-                'meta_keywords' => 'bookish merchandise, bookmarks, stickers, Pages & Palette',
+                'meta_title' => 'The Salty Lameon',
+                'meta_description' => 'Welcome to The Salty Lameon your shop for art products, and more!',
+                'meta_keywords' => 'bookish merchandise, bookmarks, stickers, notepads, snail mail',
                 'meta_url' => 'https://shop.biblophile.com',
             ];
             break;

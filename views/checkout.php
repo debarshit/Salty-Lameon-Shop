@@ -1,21 +1,16 @@
     <?php
+      $shippingCharge = 50;
       if ($is_logged_in) {
         $addresses = fetchUserAddresses();
         $userDetails = fetchUserDetails();
         $name = $userDetails['name'];
-        $phone = $userDetails['phone'];
+        $phone = $addresses[0]['Phone'] ?? $userDetails['UserPhone'];
         $accessToken = getAccessTokenFromSession();
         list($subtotal, $cartItems) = displayCheckoutTable(false);
-        $shippingCharge = 0;
         $selectedPincode = isset($addresses[0]['PostalCode']) ? $addresses[0]['PostalCode'] : '';
-        if ($subtotal >= 150) {
-          $shippingCharge = 0;
-        } else {
-          $shippingCharge = calculateShippingChargesByPincode($selectedPincode);
-        }
+        $shippingCharge = calculateShippingChargesByPincode($selectedPincode);
       } else {
         $subtotal = 0;
-        $shippingCharge = 0;
       }
     ?>
     <link rel="stylesheet" href="assets/css/checkout.css" />
@@ -59,7 +54,7 @@
               if (empty($addresses)) {
                   echo '<p>You have no saved addresses. Please add an address to proceed.</p> <a href="accounts#address" class="btn btn--md">Add Address</a>';
               } else {
-                echo '<h3 class="section__title">Select Billing Address</h3>';
+                echo '<h3 class="section__title">Select Billing Address <a href="accounts#address" class="btn btn--md">Add Address</a></h3>';
               }
               echo '<div class="addresses__list">';
           
@@ -69,6 +64,7 @@
                   echo '<input type="radio" id="address_' . $address['AddressId'] . '" name="selected_address" value="' . $address['AddressId'] . '" class="address__radio" data-pincode="' . htmlspecialchars($address['PostalCode']) . '" ' . $checked . '>';
                   echo '<label for="address_' . $address['AddressId'] . '" class="address__label">';
                   echo '<p class="address__name">' . htmlspecialchars($address['ReceiverName']) . '</p>';
+                  echo '<p class="address__phone">' . htmlspecialchars($address['Phone']) . '</p>';
                   echo '<p class="address__line">' . htmlspecialchars($address['AddressLine1']) . ' ' . htmlspecialchars($address['AddressLine2']) . '</p>';
                   echo '<p class="address__city">' . htmlspecialchars($address['City']) . ', ' . htmlspecialchars($address['State']) . ' ' . htmlspecialchars($address['PostalCode']) . '</p>';
                   echo '<p class="address__country">' . htmlspecialchars($address['Country']) . '</p>';
@@ -80,8 +76,9 @@
             ?>
             </div>
           </div>
-
           <div class="checkout__group">
+            <!-- This section delays page load. -->
+             <!-- TODO: we will fetch subtotals, shipping and overall totals separately, lazy load the checkout table for optimisation -->
             <h3 class="section__title">Cart Totals</h3>
 
             <table class="order__table">
@@ -92,7 +89,7 @@
 
               <?php
                 if ($is_logged_in) {
-                  list($checkoutTable, ) = displayCheckoutTable(true);
+                  list($checkoutTable, ) = displayCheckoutTable(true,);
                   echo $checkoutTable;
                 } else {
                   // We'll use JavaScript to get localStorage and potentially reload
@@ -112,11 +109,7 @@
                 <td>
                   <span class="table__price shipping__price">
                     <?php 
-                    if ($subtotal < 150) {
                       echo '₹' . number_format($shippingCharge, 2);
-                    } else {
-                      echo 'Free Shipping';
-                    }
                     ?>
                   </span>
                 </td>
@@ -127,7 +120,6 @@
                 <td><span class="order__grand-total">₹<?php echo number_format($subtotal + $shippingCharge, 2); ?></span></td>
               </tr>
             </table>
-
             <div class="payment__methods">
               <h3 class="checkout__title payment__title">Payment</h3>
 
@@ -140,31 +132,31 @@
                 <input type="radio" name="payment_method" value="offline" class="payment__input">
                 <label for="" class="payment__label">Pay on delivery</label>
               </div> -->
-            </div>
+          </div>
 
-            <form id="orderForm">
-              <input type="hidden" name="action" value="placeOrder">
-              <input type="hidden" name="shippingCharge" value="<?php echo $shippingCharge; ?>">
-              <input type="hidden" name="totalAmount" value="<?php echo $subtotal + $shippingCharge; ?>">
-  
-              <!-- Hidden fields for Cart Items -->
-              <?php
-              if (!empty($cartItems)) {
-                  foreach ($cartItems as $index => $item) {
-                      echo '<input type="hidden" name="cartItems[' . $index . '][productId]" value="' . $item['productId'] . '">';
-                      echo '<input type="hidden" name="cartItems[' . $index . '][customization]" value="' . $item['customization'] . '">';
-                      echo '<input type="hidden" name="cartItems[' . $index . '][quantity]" value="' . $item['quantity'] . '">';
-                      echo '<input type="hidden" name="cartItems[' . $index . '][price]" value="' . $item['price'] . '">';
-                  }
-              }
-              ?>
-  
-              <!-- Hidden fields for Address ID and Payment Method -->
-              <input type="hidden" name="addressId" id="addressId">
-              <input type="hidden" name="paymentMethod" id="paymentMethod">
+          <form id="orderForm" data-customer-name="<?php echo htmlspecialchars($name); ?>" data-customer-phone="<?php echo htmlspecialchars($phone); ?>">
+            <input type="hidden" name="action" value="placeOrder">
+            <input type="hidden" name="shippingCharge" value="<?php echo $shippingCharge; ?>">
+            <input type="hidden" name="totalAmount" value="<?php echo $subtotal + $shippingCharge; ?>">
 
-              <button type="submit" class="btn btn--md" id="placeOrderButton">Place Order</button>
-            </form>
+            <!-- Hidden fields for Cart Items -->
+            <?php
+            if (!empty($cartItems)) {
+                foreach ($cartItems as $index => $item) {
+                    echo '<input type="hidden" name="cartItems[' . $index . '][productId]" value="' . $item['productId'] . '">';
+                    echo '<input type="hidden" name="cartItems[' . $index . '][customization]" value="' . $item['customization'] . '">';
+                    echo '<input type="hidden" name="cartItems[' . $index . '][quantity]" value="' . $item['quantity'] . '">';
+                    echo '<input type="hidden" name="cartItems[' . $index . '][price]" value="' . $item['price'] . '">';
+                }
+            }
+            ?>
+
+            <!-- Hidden fields for Address ID and Payment Method -->
+            <input type="hidden" name="addressId" id="addressId">
+            <input type="hidden" name="paymentMethod" id="paymentMethod">
+
+            <button type="submit" class="btn btn--md" id="placeOrderButton">Place Order</button>
+          </form>
           </div>
         </div>
       </section>
@@ -337,6 +329,10 @@
         event.preventDefault();
         
         if (isRequestInProgress) return;
+
+        // Disable the button immediately
+        placeOrderButton.disabled = true;
+        placeOrderButton.textContent = "Processing...";
         
         placeOrder();
       });
@@ -448,7 +444,7 @@
     * Update cart totals display
     * 
     * @param {number} subtotal - Cart subtotal
-    * @param {number} shipping - Shipping charge
+    * @param {number} R - Shipping charge
     * @param {number} total - Cart total
     */
     function updateCartTotalsDisplay(subtotal, shipping, total) {
@@ -457,11 +453,7 @@
       }
       
       if (shippingPriceElement) {
-        if (parseFloat(subtotal) >= 150) {
-          shippingPriceElement.textContent = 'Free Shipping';
-        } else {
-          shippingPriceElement.textContent = '₹' + parseFloat(shipping).toFixed(2);
-        }
+        shippingPriceElement.textContent = '₹' + parseFloat(shipping).toFixed(2);
       }
       
       if (grandTotalElement) {
@@ -587,7 +579,7 @@
         const planPrice = document.querySelector('input[name="totalAmount"]').value;
         
         // Request to initiate online payment
-        fetch('<?php echo $_ENV['BIBLOPHILE_API_URL']; ?>payments/request', {
+        fetch('actions.php?action=paymentRequest', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -602,7 +594,11 @@
           
           if (data.link_url) {
             // Open payment window
-            window.open(data.link_url, '_blank');
+            const paymentWindow = window.open(
+              data.link_url,
+              '_blank',
+              'width=600,height=600'
+            );
             
             // Start polling payment status
             pollPaymentStatus(
@@ -611,7 +607,8 @@
               planPrice, 
               isLoggedIn ? selectedAddressId : null,
               paymentMethod,
-              formToUse
+              formToUse,
+              paymentWindow
             );
           } else {
             showMessage("Payment link creation failed. Please try again.", 'error');
@@ -631,17 +628,31 @@
     /**
     * Poll payment status until completed
     */
-    function pollPaymentStatus(linkId, customerPhone, amount, addressId, paymentMethod, formData) {
-      const pollInterval = setInterval(function() {
+    function pollPaymentStatus(linkId, customerPhone, amount, addressId, paymentMethod, formData, paymentWindow) {
+      const POLL_TIMEOUT = 300000; // 5 minutes
+      let timeoutReached = false;
+
+      // Timeout handler
+      const timeout = setTimeout(() => {
+        timeoutReached = true;
+        clearInterval(pollInterval);
+        if (paymentWindow && !paymentWindow.closed) {
+          paymentWindow.close();
+        }
+        showMessage("Payment process timed out. Please try again.", "error");
+      }, POLL_TIMEOUT);
+
+      const pollInterval = setInterval(function () {
+        if (timeoutReached) return;
+
         const accessToken = '<?php echo $accessToken ?? null; ?>';
-        const headers = {
-          'Content-Type': 'application/json'
-        };
+        const headers = { 'Content-Type': 'application/json' };
+
         if (accessToken) {
           headers['Authorization'] = 'Bearer ' + accessToken;
         }
 
-        fetch('<?php echo $_ENV['BIBLOPHILE_API_URL']; ?>payments/success?linkId=' + linkId, {
+        fetch(`actions.php?action=paymentSuccessful&linkId=${linkId}`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -649,18 +660,26 @@
             amount: amount
           })
         })
-        .then(response => response.json())
-        .then(statusResponse => {
-          console.log("Payment poll response:", statusResponse);
-          if (statusResponse.status === "success. You can close this window.") {
-            clearInterval(pollInterval);
-            submitOrder(formData);
-          }
-        })
-        .catch(error => {
-          console.error("Error occurred while checking payment status:", error);
-          // Don't clear interval, keep trying
-        });
+          .then(response => response.json())
+          .then(statusResponse => {
+            console.log("Payment poll response:", statusResponse);
+
+            if (statusResponse.status === "success. You can close this window.") {
+              clearInterval(pollInterval);
+              clearTimeout(timeout);
+
+              // ✅ Close popup
+              if (paymentWindow && !paymentWindow.closed) {
+                paymentWindow.close();
+              }
+
+              submitOrder(formData);
+            }
+          })
+          .catch(error => {
+            console.error("Error checking payment status:", error);
+          });
+
       }, 5000);
     }
     
@@ -772,13 +791,13 @@ function setupBillingCollapse() {
   } else {
     addressSection.classList.add('active');
     toggleBtn.setAttribute('aria-expanded', 'true');
-    icon.textContent = '−';
+    icon.textContent = '-';
   }
 
   toggleBtn.onclick = () => {
     const expanded = addressSection.classList.toggle('active');
     toggleBtn.setAttribute('aria-expanded', expanded);
-    icon.textContent = expanded ? '−' : '+';
+    icon.textContent = expanded ? '-' : '+';
   };
 }
 </script>

@@ -1,4 +1,9 @@
     <?php
+      $is_logged_in = isset($_COOKIE['user_session']) && !empty($_COOKIE['user_session']);
+      if (!$is_logged_in) {
+        header("Location: /"); // redirect to home
+        exit();
+      }
       $addresses = fetchUserAddresses();
       $userDetails = fetchUserDetails();
     ?>
@@ -107,9 +112,9 @@
                 <form id="updateProfileForm" action="" class="form grid">
                   <input 
                     type="text" 
-                    placeholder="Username" 
+                    placeholder="Name" 
                     class="form__input"
-                    name="UserName"
+                    name="Name"
                   />
 
                   <div class="form__btn">
@@ -133,6 +138,9 @@
                                   ' . htmlspecialchars($address['ReceiverName']) . '
                               </address>
                               <address class="address__one">
+                                  ' . htmlspecialchars($address['Phone']) . '
+                              </address>
+                              <address class="address__one">
                                   ' . htmlspecialchars($address['AddressLine1']) .'
                               </address>
                               <address class="address__two">
@@ -151,7 +159,8 @@
                                   ' . htmlspecialchars($address['Country']) .'
                               </p>
                               <a href="accounts#editModal" class="edit" data-id="' . $address['AddressId'] . 
-                                '" data-receiver="' . htmlspecialchars($address['ReceiverName']) . 
+                                '" data-receiver="' . htmlspecialchars($address['ReceiverName']) .
+                                '" data-phone="' . htmlspecialchars($address['Phone']) .
                                 '" data-line1="' . htmlspecialchars($address['AddressLine1']) . 
                                 '" data-line2="' . htmlspecialchars($address['AddressLine2']) . 
                                 '" data-city="' . htmlspecialchars($address['City']) . 
@@ -182,6 +191,9 @@
                   <label for="receiver">Receiver Name:</label>
                   <input type="text" id="receiver" name="receiver" required>
                   
+                  <label for="phone">Phone Number:</label>
+                  <input type="text" id="phone" name="phone" required pattern="\d{10}" maxlength="10" placeholder="10-digit phone number">
+
                   <label for="addressLine1">Address Line 1:</label>
                   <input type="text" id="addressLine1" name="addressLine1" required>
                   
@@ -237,6 +249,27 @@
     </main>
 
     <script>
+      // Later use the common function for tabs switching in accounts and product details page written in main.js
+      const tabs = document.querySelectorAll('[data-target]'),
+      tabContents = document.querySelectorAll('[content]');
+
+      tabs.forEach((tab) => {
+          tab.addEventListener('click', () => {
+              const target = document.querySelector(tab.dataset.target);
+              tabContents.forEach((tabContent) => {
+                  tabContent.classList.remove('active-tab')
+              });
+
+            target.classList.add('active-tab');
+
+            tabs.forEach((tab) => {
+              tab.classList.remove('active-tab')
+            });
+
+            tab.classList.add('active-tab');
+          });
+      });
+
       document.getElementById('logoutButton').addEventListener('click', function() {
         fetch('actions.php?action=deleteSessionCookie', {
             method: 'POST',
@@ -261,25 +294,27 @@
         });
       });
 
-      document.addEventListener('DOMContentLoaded', function() {
+      document.addEventListener('DOMContentLoaded', function () {
         attachEditButtonListeners();
         attachDeleteButtonListeners();
-        // Check if the URL contains the 'address' hash
-        if (window.location.hash === '#address') {
-            // Activate the 'My Addresses' tab
+        const hash = window.location.hash;
+        if (hash) {
+          const targetTab = document.querySelector(`.account__tab[data-target="${hash}"]`);
+          const targetContent = document.querySelector(hash);
+          if (targetTab && targetContent) {
             document.querySelectorAll('.account__tab').forEach(tab => {
-                tab.classList.remove('active-tab');
+              tab.classList.remove('active-tab');
             });
-            document.querySelector('.account__tab[data-target="#address"]').classList.add('active-tab');
-
-            // Show the 'Address' tab content
             document.querySelectorAll('.tab__content').forEach(content => {
-                content.classList.remove('active-tab');
+              content.classList.remove('active-tab');
             });
-            document.querySelector('#address').classList.add('active-tab');
-
-            // Automatically open the address modal
-            document.getElementById('addAddressBtn').click();
+            targetTab.classList.add('active-tab');
+            targetContent.classList.add('active-tab');
+            // Special behavior for address tab
+            if (hash === "#address") {
+              document.getElementById('addAddressBtn')?.click();
+            }
+          }
         }
       });
 
@@ -300,11 +335,11 @@
         event.preventDefault();
 
         const formData = new FormData(this);
-        const UserName = formData.get('UserName');
+        const Name = formData.get('Name');
         
         const data = {
-          property: 'UserName',
-          value: UserName
+          property: 'Name',
+          value: Name
         };
 
         fetch('actions.php?action=updateProfile', {

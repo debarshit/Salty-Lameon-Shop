@@ -1,6 +1,7 @@
 <?php
 $current_page = isset($_GET['page']) ? $_GET['page'] : 'home';
 $is_logged_in = isset($_COOKIE['user_session']) && !empty($_COOKIE['user_session']);
+ob_start();
 ?>
 
 <!DOCTYPE html>
@@ -95,7 +96,19 @@ $is_logged_in = isset($_COOKIE['user_session']) && !empty($_COOKIE['user_session
             <?php endif; ?>
 
             <li class="nav__item">
-              <a href="https://biblophile.freshdesk.com/" class="nav__link">Contact Us</a>
+              <a href="policies/contact-us.php" class="nav__link">Contact Us</a>
+            </li>
+
+            <li class="nav__item">
+              <a href="policies/terms-and-conditions.php" class="nav__link">Terms & Conditions</a>
+            </li>
+
+            <li class="nav__item">
+              <a href="policies/refund-and-cancellation.php" class="nav__link">Refund & Cancellation</a>
+            </li>
+
+            <li class="nav__item">
+              <a href="policies/shipping-policy.php" class="nav__link">Shipping Policy</a>
             </li>
 
             <li class="nav__item">
@@ -149,8 +162,8 @@ $is_logged_in = isset($_COOKIE['user_session']) && !empty($_COOKIE['user_session
      <?php if ($current_page == 'home' || $current_page == 'shop'): ?>
     <section class="banner">
       <div class="banner__image-container">
-        <img src="https://ik.imagekit.io/umjnzfgqh/shop/common_assets/banners/banner.jpeg" alt="Banner Image" class="banner__image banner__image--small">
-        <img src="https://ik.imagekit.io/umjnzfgqh/shop/common_assets/banners/banner-large.png" alt="Banner Image" class="banner__image banner__image--large">
+        <img src="https://ik.imagekit.io/zwbctwlsb/common_assets/banner/Banner%20-%20Small.png?updatedAt=1772903421795" alt="Banner Image" class="banner__image banner__image--small">
+        <img src="https://ik.imagekit.io/zwbctwlsb/common_assets/banner/Banner%20-%20large.png?updatedAt=1772903443059" alt="Banner Image" class="banner__image banner__image--large">
       </div>
     </section>
     <?php endif; ?>

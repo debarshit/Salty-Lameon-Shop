@@ -1,3 +1,6 @@
+<?php
+  $cartIcons = fetchImagesFromImageKit('common_assets/cart/');
+?>
 <link rel="stylesheet" href="assets/css/shop.css" />
     <!--=============== MAIN ===============-->
     <main class="main">
@@ -214,6 +217,7 @@
       const limit = 8;
       let isLoading = false;
       const categoryId = <?= isset($_GET['category_id']) ? intval($_GET['category_id']) : 'null'; ?>;
+      const cartIcons = <?= json_encode($cartIcons); ?>;
 
       function loadProducts() {
           if (isLoading) return;
@@ -248,55 +252,54 @@
 
       // Event delegation for dynamically loaded "add to cart" buttons
       document.querySelector('#products-container').addEventListener('click', function(e) {
-        if (e.target && e.target.classList.contains('cart__btn')) {
+        const button = e.target.closest('.cart__btn');
+        if (button) {
           e.preventDefault();
 
-          // Get product details from data attributes
-          var button = e.target;
           var productId = button.getAttribute('data-product-id');
           var productName = button.getAttribute('data-product-name');
           var price = button.getAttribute('data-product-price');
           var category = button.getAttribute('data-category');
 
-          // Get the position of the clicked button
-          const rect = e.target.getBoundingClientRect();
+          const rect = button.getBoundingClientRect();
           const clickX = rect.left + rect.width / 2;
           const clickY = rect.top + rect.height / 2;
 
-          // Create the animation element
-          const animationElement = document.createElement('div');
+          let randomIcon = null;
+          if (cartIcons && cartIcons.length > 0) {
+              randomIcon = cartIcons[Math.floor(Math.random() * cartIcons.length)];
+          }
+
+          const animationElement = document.createElement('img');
           animationElement.classList.add('add-to-cart-animation');
+
+          if (randomIcon) {
+            animationElement.src = randomIcon;
+          }
+
           animationElement.style.top = `${clickY}px`;
           animationElement.style.left = `${clickX}px`;
+
           document.body.appendChild(animationElement);
 
-          // Remove the animation element after the animation ends
           animationElement.addEventListener('animationend', function() {
-              animationElement.remove();
+            animationElement.remove();
           });
 
           var quantity = 1;
           var customization = null;
 
-          // Use the unified CartSystem to add the item
-          CartSystem.addItem(productId=productId, quantity=quantity, price=price, customization=customization)
+          CartSystem.addItem(productId, quantity, price, customization)
           .then(data => {
-              // Handle the response based on the CartSystem's outcome
-              // For guest users, success: true is returned immediately
-              // For logged-in users, data.message == '1' indicates success
-              if (data.success || data.message == '1') {
-                  // alert('Product added to cart!');
-                  // Update the cart count in the header using the global function
-                  updateCartCountInHeader();
-              } else {
-                  // Handle server-side errors for logged-in users
-                  alert('Error: ' + (data.message || 'Failed to add product to cart.'));
-              }
+            if (data.success || data.message == '1') {
+                updateCartCountInHeader();
+            } else {
+                alert('Error: ' + (data.message || 'Failed to add product to cart.'));
+            }
           })
           .catch(error => {
-              console.error('Error adding to cart:', error);
-              alert('There was an issue adding the item to the cart.');
-          }); 
+            console.error('Error adding to cart:', error);
+          });
         }
       });
 

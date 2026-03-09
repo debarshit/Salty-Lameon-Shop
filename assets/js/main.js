@@ -32,7 +32,7 @@ if(navClose) {
     scrollContainer.scrollBy({ left: -300, behavior: 'smooth' });
   });
 
-/*=============== DETAILS TABS ===============*/
+/*=============== TABS SWITCHING ===============*/
 const tabs = document.querySelectorAll('[data-target]'),
 tabContents = document.querySelectorAll('[content]');
 

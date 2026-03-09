@@ -5,6 +5,10 @@
 
     // Load environment variables
     require_once __DIR__ . '/vendor/autoload.php';
+    require_once 'includes/auth/auth.service.php';
+
+    use Firebase\JWT\JWT;
+    use Firebase\JWT\Key;
 
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
     $dotenv->load();
@@ -33,7 +37,7 @@
         $metaDescription = isset($pageData['meta_description']) ? $pageData['meta_description'] : 'Welcome to Pages & Palette – your shop for bookish merchandise like bookmarks, stickers, and more!';
         $metaKeywords = isset($pageData['meta_keywords']) ? $pageData['meta_keywords'] : 'bookish merchandise, bookmarks, stickers, books, Pages & Palette';
         $metaImage = isset($pageData['meta_image']) ? $pageData['meta_image'] : 'assets/img/logo.svg';
-        $metaUrl = isset($pageData['meta_url']) ? $pageData['meta_url'] : 'https://shop.biblophile.com';
+        $metaUrl = isset($pageData['meta_url']) ? $pageData['meta_url'] : 'https://thesaltylameon.com';
     
         // Open Graph meta tags
         $ogTitle = $metaTitle;
@@ -121,7 +125,7 @@
             $categoryUrl = "shop/{$categoryId}/" . urlencode($name);
             $categories_html .= '
                 <a href="' . $categoryUrl . '" class="category__item swiper-slide">
-                    <img src="' . $image . '" alt="" class="category__img">
+                    <!-- <img src="' . $image . '" alt="" class="category__img"> -->
                     <h3 class="category__title">' . $name . '</h3>
                 </a>';
         }
@@ -137,7 +141,7 @@
         curl_setopt($ch, CURLOPT_URL, $apiUrl . '?path=' . urlencode($folderPath));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     
-        $privateKey = 'private_M8laZw59kBD1UuCzwb2WsMYI8Zo=';
+        $privateKey = 'private_UXMsh7UiS3NWKADYAwJ/Tebobxw=';
         $auth = base64_encode($privateKey . ':');
     
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -441,18 +445,11 @@ function fetchUserAddresses() {
     // Step 1: Retrieve the cookie value
     if (isset($accessToken)) {
 
-    // Step 2: Decode the accessToken using the external API
-    $url = 'https://shop.biblophile.com/decodeUserId.php?action=decodeUserId&Authorization=' . $accessToken;
-    
-    $response = file_get_contents($url);
-    $decodedResponse = json_decode($response, true);
+    $userId = getUserIdFromAccessToken($accessToken);
 
-    if (isset($decodedResponse['success']) && $decodedResponse['success'] === true) {
-        // Step 3: Extract userId from the decoded response
-        $userId = $decodedResponse['userId'];
-
+    if ($userId) {
         $stmt = $shopLink->prepare("
-            SELECT AddressId, ReceiverName, AddressLine1, AddressLine2, City, State, PostalCode, Country
+            SELECT AddressId, ReceiverName, Phone, AddressLine1, AddressLine2, City, State, PostalCode, Country
             FROM useraddresses
             WHERE UserId = ?
         ");
@@ -467,7 +464,7 @@ function fetchUserAddresses() {
             return [];
         }
     } else {
-        return ['error' => 'Unable to decode userId: ' . $decodedResponse['message']];
+        return ['error' => 'Unable to decode userId: '];
     }
     } else {
         return ['error' => 'User session cookie is not set'];
@@ -477,7 +474,7 @@ function fetchUserAddresses() {
 // Function to calculate shipping charges based on the PIN code
 function calculateShippingChargesByPincode($pincode) {
     if (!is_numeric($pincode) || strlen($pincode) !== 6) {
-        return null;
+        return 100;
     }
 
     if ($pincode >= 560001 && $pincode <= 560999) {
@@ -504,111 +501,215 @@ function calculateShippingChargesByPincode($pincode) {
 }
 
 // Function to fetch access token from the session cookie
-function getAccessTokenFromSession() {
-    if (isset($_COOKIE['user_session'])) {
-        $cookieData = base64_decode($_COOKIE['user_session']);
-        
-        $sessionData = json_decode($cookieData, true);
+function refreshAccessToken($refreshToken) {
+    global $shopLink;
 
-        if (isset($sessionData['accessToken'])) {
-            return $sessionData['accessToken'];
-        } else {
-            return null;
-        }
+    $stmt = $shopLink->prepare("
+        SELECT userId, expiresAt
+        FROM user_refresh_tokens
+        WHERE userRefreshToken = ?
+        LIMIT 1
+    ");
+
+    $stmt->bind_param("s", $refreshToken);
+    $stmt->execute();
+
+    $result = $stmt->get_result()->fetch_assoc();
+
+    if (!$result) {
+        return null;
+    }
+
+    if (strtotime($result['expiresAt']) < time()) {
+        deleteRefreshToken($refreshToken);
+        return null;
+    }
+
+    // Fetch user
+    $stmt = $shopLink->prepare("SELECT * FROM users WHERE UserId = ?");
+    $stmt->bind_param("i", $result['userId']);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+
+    $payload = buildTokenPayload($user);
+    $newAccessToken = generateAccessToken($payload);
+
+    $cookieValue = base64_encode(json_encode([
+        'accessToken' => $newAccessToken,
+        'refreshToken' => $refreshToken
+    ]));
+
+    setcookie('user_session', $cookieValue, [
+        'expires' => time() + (86400 * 7),
+        'path' => '/',
+        'domain' => $_ENV['APP_ENV'] === "production" ? ".thesaltylameon.com" : null,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+
+    return $newAccessToken;
+}
+
+function getAccessTokenFromSession() {
+    if (!isset($_COOKIE['user_session'])) {
+        return null;
+    }
+
+    $cookieData = base64_decode($_COOKIE['user_session']);
+    $sessionData = json_decode($cookieData, true);
+
+    if (!isset($sessionData['accessToken'])) {
+        return null;
+    }
+
+    $accessToken = $sessionData['accessToken'];
+
+    // Decode JWT payload
+    $parts = explode('.', $accessToken);
+    if (count($parts) !== 3) {
+        return null;
+    }
+
+    $payload = json_decode(base64_decode($parts[1]), true);
+
+    if (!isset($payload['exp'])) {
+        return null;
+    }
+
+    // If token is still valid
+    if ($payload['exp'] > time()) {
+        return $accessToken;
+    }
+
+    // Token expired → refresh it
+    $newToken = refreshAccessToken($sessionData['refreshToken']);
+
+    return $newToken;
+}
+
+// Function to fetch user details from the database
+function fetchUserDetails() {
+    global $shopLink;
+
+    $accessToken = getAccessTokenFromSession();
+
+    $userId = getUserIdFromAccessToken($accessToken);
+
+     if (!$userId) {
+        return [
+            'error' => 'User not authenticated'
+        ];
+    }
+
+    $stmt = $shopLink->prepare("SELECT Name, UserEmail, UserPhone, SourceReferral FROM users WHERE UserId = ?");
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+
+    $result = $stmt->get_result();
+
+    if ($result->num_rows > 0) {
+
+        $row = $result->fetch_assoc();
+
+        return [
+            'name' => $row['Name'] ?? null,
+            'email' => $row['UserEmail'] ?? null,
+            'phone' => $row['UserPhone'] ?? null,
+            'sourceReferral' => $row['SourceReferral'] ?? null,
+        ];
+
     } else {
+
+        return [
+            'error' => 'User not found'
+        ];
+
+    }
+}
+
+function getUserIdFromAccessToken($accessToken) {
+    $secretKey = 'my_super_secure_secret_key_2026_very_long_random'; // same key used when generating token
+
+    try {
+        $decoded = JWT::decode($accessToken, new Key($secretKey, 'HS256'));
+
+        return $decoded->userId ?? null;
+
+    } catch (Exception $e) {
         return null;
     }
 }
 
 // Function to fetch user details from the database
-function fetchUserDetails() {
-    $url = $_ENV['BIBLOPHILE_API_URL'].'users/me';
-
+function updateUserData($property, $value) {
+    global $shopLink;
     $accessToken = getAccessTokenFromSession();
+    $userId = getUserIdFromAccessToken($accessToken);
+    $response = [];
+    $error = "";
 
-    $ch = curl_init($url);
-
-    // Set the cURL options
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Content-Type: application/json',
-        'Authorization: Bearer ' . $accessToken
-    ]);
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
-
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE); 
-    curl_close($ch);
-
-    echo $response;
-
-    if ($httpCode == 200) {
-        $responseData = json_decode($response, true);
-
-        if (isset($responseData['data'])) {
-             return [
-                'name' => $responseData['data']['name'] ?? null,
-                'userName' => $responseData['data']['userName'] ?? null,
-                'email' => $responseData['data']['email'] ?? null,
-                'phone' => $responseData['data']['phone'] ?? null,
-                'address' => $responseData['data']['address'] ?? null,
-                'sourceReferral' => $responseData['data']['sourceReferral'] ?? null,
-            ];
-        } else {
-            return [
-                'error' => 'Error fetching user details: ' . $responseData['message']
-            ];
-        }
-    } else {
+    if (empty($property) || empty($value)) {
         return [
-            'error' => 'Failed to connect to the API. HTTP status code: ' . $httpCode
+            'success' => false,
+            'message' => 'Property name and value cannot be empty.'
         ];
     }
-}
 
-// Function to fetch user details from the database
-function updateUserData($property, $value) {
-    $url = $_ENV['BIBLOPHILE_API_URL'].'users/update';
+    // Allowed fields (security)
+    $allowedFields = [
+        'UserEmail',
+        'UserPhone',
+        'Name',
+        'SourceReferral'
+    ];
 
-    $accessToken = getAccessTokenFromSession();
+    if (!in_array($property, $allowedFields)) {
+        return [
+            'success' => false,
+            'message' => 'Invalid property.'
+        ];
+    }
 
-    $postData = json_encode([
-        'property' => $property,
-        'value' => $value
-    ]);
+    // Validate email
+    if ($property === "UserEmail" && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
+        $error = "Please enter a valid email address.";
+    }
 
-    $ch = curl_init($url);
+    // Check duplicates
+    if (in_array($property, ["UserEmail", "UserPhone"])) {
 
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Content-Type: application/json',
-        'Authorization: Bearer ' . $accessToken
-    ]);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+        $query = "SELECT UserId FROM users WHERE $property = ? AND UserId != ?";
+        $stmt = $shopLink->prepare($query);
+        $stmt->bind_param("si", $value, $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($httpCode == 200) {
-        $responseData = json_decode($response, true);
-
-        if (isset($responseData['message']) && $responseData['message'] == "Updated") {
-            return [
-                'success' => true,
-                'message' => 'Profile updated successfully!'
-            ];
-        } else {
-            return [
-                'success' => false,
-                'message' => 'Error: ' . $responseData['message']
-            ];
+        if ($result->num_rows > 0) {
+            $error = "That $property is already taken.";
         }
+    }
+
+    if ($error != "") {
+        return [
+            'success' => false,
+            'message' => $error
+        ];
+    }
+
+    // Update query
+    $updateQuery = "UPDATE users SET $property = ? WHERE UserId = ?";
+    $stmt = $shopLink->prepare($updateQuery);
+    $stmt->bind_param("si", $value, $userId);
+
+    if ($stmt->execute()) {
+        return [
+            'success' => true,
+            'message' => 'Profile updated successfully!'
+        ];
     } else {
         return [
             'success' => false,
-            'message' => 'Failed to connect to the API. HTTP status code: ' . $httpCode
+            'message' => 'Could not update profile.'
         ];
     }
 }
@@ -620,13 +721,9 @@ function displayCartNumber() {
 
     if (isset($accessToken)) {
 
-        $url = 'https://shop.biblophile.com/decodeUserId.php?action=decodeUserId&Authorization=' . $accessToken;
-        $response = file_get_contents($url);
-        $decodedResponse = json_decode($response, true);
+        $userId = getUserIdFromAccessToken($accessToken);
 
-        if (isset($decodedResponse['success']) && $decodedResponse['success'] === true) {
-            $userId = $decodedResponse['userId'];
-
+        if ($userId) {
             $stmt = $shopLink->prepare("
                 SELECT COUNT(*) AS totalItems 
                 FROM carts 
@@ -653,7 +750,7 @@ function displayCartNumber() {
                 return ""; // Return empty string if no items in the cart
             }
         } else {
-            return 'Error: ' . $decodedResponse['message'];
+            return json_encode(['success' => false, 'message' => 'Unable to decode userId. ']);
         }
     } else {
         return 'Error: User session cookie is not set';
@@ -668,13 +765,9 @@ function displayCartList($displayTable = true, $guestCartJson = null) {
 
     if (isset($accessToken)) {
         // User is logged in - existing logic here
-        $url = 'https://shop.biblophile.com/decodeUserId.php?action=decodeUserId&Authorization=' . $accessToken;
-        $response = file_get_contents($url);
-        $decodedResponse = json_decode($response, true);
+        $userId = getUserIdFromAccessToken($accessToken);
 
-        if (isset($decodedResponse['success']) && $decodedResponse['success'] === true) {
-            $userId = $decodedResponse['userId'];
-
+        if ($userId) {
             $query = "
                 SELECT c.Quantity, c.Customization, p.ProductId, p.ProductName, p.NewPrice, p.ProductImage 
                 FROM carts c 
@@ -856,13 +949,9 @@ function displayCheckoutTable($displayTable = true, $guestCartJson = null) {
     $customizationOptions = [];
 
     if (isset($accessToken)) {
-        $url = 'https://shop.biblophile.com/decodeUserId.php?action=decodeUserId&Authorization=' . $accessToken;
-        $response = file_get_contents($url);
-        $decodedResponse = json_decode($response, true);
+        $userId = getUserIdFromAccessToken($accessToken);
 
-        if (isset($decodedResponse['success']) && $decodedResponse['success'] === true) {
-            $userId = $decodedResponse['userId'];
-
+        if ($userId) {
             $query = "
                 SELECT c.Quantity, c.Customization, p.ProductId, p.ProductName, p.NewPrice, p.ProductImage 
                 FROM carts c 
@@ -1064,12 +1153,7 @@ function displayUserOrders() {
     $accessToken = getAccessTokenFromSession();
     $userId = null;
     if (isset($accessToken)) {
-        $url = 'https://shop.biblophile.com/decodeUserId.php?action=decodeUserId&Authorization=' . $accessToken;
-        $response = file_get_contents($url);
-        $decodedResponse = json_decode($response, true);
-        if (isset($decodedResponse['success']) && $decodedResponse['success'] === true) {
-            $userId = $decodedResponse['userId'];
-        }
+        $userId = getUserIdFromAccessToken($accessToken);
     }
 
     if ($userId) {

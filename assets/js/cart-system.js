@@ -161,7 +161,7 @@ const CartSystem = {
                     resolve({
                         success: true,
                         subtotal: 0,
-                        shipping: 0,
+                        shipping: 50,
                         total: 0
                     });
                     return;
