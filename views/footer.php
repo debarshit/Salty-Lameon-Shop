@@ -4,23 +4,15 @@
       <div class="footer__bottom">
         <p class="copyright">&copy; 2026 The Salty Lameon. All rights reserved</p>
         <div class="footer__social-links flex">
-          <a href="https://www.facebook.com/profile.php?id=61559661155321">
+          <a href="https://www.youtube.com/channel/UC7fnmbvh6tMTeXUqN0AglZg">
             <img 
-              src="assets/img/icon-facebook.svg" 
+              src="assets/img/icon-youtube.svg" 
               alt=""
               class="footer__social-icon"
               />
           </a>
 
-          <a href="https://x.com/__biblophile__">
-            <img 
-              src="assets/img/icon-twitter.svg" 
-              alt=""
-              class="footer__social-icon"
-              />
-          </a>
-
-          <a href="https://www.instagram.com/rashmii.ramesh/">
+          <a href="https://www.instagram.com/maybe.rush_me/">
             <img 
               src="assets/img/icon-instagram.svg" 
               alt=""
@@ -28,7 +20,7 @@
               />
           </a>
 
-          <a href="https://in.pinterest.com/rashmiramesha/">
+          <a href="https://pin.it/7JO9YvYb6">
             <img 
               src="assets/img/icon-pinterest.svg" 
               alt=""

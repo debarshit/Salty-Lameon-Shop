@@ -12,25 +12,25 @@ $artworks = fetchImagesFromImageKit('/artworks');
                 <div class="contact-infos">
                 <div class="contact-infos__email__section">
                     <i class="ri-mail-line"></i>
-                    <a href="mailto:thesaltylameon@gmail.com" class="contact-infos__email">thesaltylameon@gmail.com</a>
+                    <a href="mailto:rashmi@thesaltylameon.com" class="contact-infos__email">rashmi@thesaltylameon.com</a>
                 </div>
 
                 <div class="contact-infos__socials__section">
-                    <a href="https://instagram.com" target="_blank" class="contact-infos__socials__link">
+                    <a href="https://www.instagram.com/maybe.rush_me/" target="_blank" class="contact-infos__socials__link">
                         <img 
                             src="assets/img/icon-instagram.svg" 
                             alt=""
                             class="contact-infos__socials__icon"
                             />
                     </a>
-                    <a href="https://youtube.com" target="_blank" class="contact-infos__socials__link">
+                    <a href="https://www.youtube.com/channel/UC7fnmbvh6tMTeXUqN0AglZg" target="_blank" class="contact-infos__socials__link">
                         <img 
-                            src="assets/img/icon-twitter.svg" 
+                            src="assets/img/icon-youtube.svg" 
                             alt=""
                             class="contact-infos__socials__icon"
                             />
                     </a>
-                    <a href="https://pinterest.com" target="_blank" class="contact-infos__socials__link">
+                    <a href="https://pin.it/7JO9YvYb6" target="_blank" class="contact-infos__socials__link">
                         <img 
                             src="assets/img/icon-pinterest.svg" 
                             alt=""
