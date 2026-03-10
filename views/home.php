@@ -8,7 +8,12 @@ $artworks = fetchImagesFromImageKit('/artworks');
         <section class="featured container">
             <div class="featured__grid">
             <div class="featured__item featured__item--large">
-                <img src="https://picsum.photos/800" alt="Featured">
+                <picture>
+                    <source srcset="https://ik.imagekit.io/zwbctwlsb/common_assets/hero/Hero%20-%20Small.png" media="(max-width: 768px)">
+                    <source srcset="https://ik.imagekit.io/zwbctwlsb/common_assets/hero/Hero%20-%20Large.png" media="(min-width: 769px)">
+                    <!-- fallback -->
+                    <img src="https://ik.imagekit.io/zwbctwlsb/common_assets/hero/Hero%20-%20Large.png" alt="Featured">
+                </picture>
                 <div class="contact-infos">
                 <div class="contact-infos__email__section">
                     <i class="ri-mail-line"></i>

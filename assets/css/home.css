@@ -32,10 +32,17 @@
     clip-path: inset(0 0 0 0 round 30px); 
 }
 
+.featured__item--large picture,
 .featured__item--large img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    display: block;
+}
+
+.featured__item--large img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
     border-radius: 30px;
 }
 
