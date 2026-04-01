@@ -344,9 +344,48 @@ tfoot button:hover {
 	width: 50%;
 	overflow-y: auto;
 	padding: 2em;
+	overflow-x: hidden;
 }
 
 /* FIX existing form spacing */
 .form {
 	margin: 0;
+}
+
+/* PREVIEW CONTAINER */
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.preview-controls button {
+    border: none;
+    background: #f3f3f3;
+    padding: 6px 10px;
+    margin-left: 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s ease;
+}
+
+.preview-controls button:hover {
+    background: #e0e0e0;
+}
+
+.preview-controls button.active {
+    color: #fff;
+}
+
+.preview-frame {
+    width: 100%;
+    height: 100%;
+    min-height: 80vh;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 20px rgba(0,0,0,.06);
+    background: #fff;
+    transition: width 0.3s ease;
 }

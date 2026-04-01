@@ -178,28 +178,6 @@ const formData = new FormData();
     });
 }
 
-document.getElementById('addAdditionalInfoRow').addEventListener('click', function() {
-    const tableBody = document.querySelector('#additionalInfosTable tbody');
-    const newRow = document.createElement('tr');
-    newRow.innerHTML = `
-        <td><input type="text" placeholder="Key" class="key" /></td>
-        <td><input type="text" placeholder="Value" class="value" /></td>
-        <td><button class="removeAdditionalInfoRow">Remove</button></td>
-    `;
-    tableBody.appendChild(newRow);
-});
-
-document.getElementById('addCustomizationRow').addEventListener('click', function() {
-    const tableBody = document.querySelector('#customizationTable tbody');
-    const newRow = document.createElement('tr');
-    newRow.innerHTML = `
-        <td><input type="text" placeholder="Option" class="option" /></td>
-        <td><input type="text" placeholder="Price" class="values" /></td>
-        <td><button class="removeCustomizationRow">Remove</button></td>
-    `;
-    tableBody.appendChild(newRow);
-});
-
 // Event delegation for removing rows
 document.querySelector('#customizationTable tbody').addEventListener('click', function(e) {
     if (e.target.classList.contains('removeCustomizationRow')) {
@@ -630,66 +608,4 @@ function fetchSpecialCategories(query) {
         .catch(error => {
             console.error("Error fetching categories:", error);
         });
-}
-
-//image validation
-const imageUpload = document.getElementById('imageUpload');
-const imagePreviews = document.getElementById('imagePreviews');
-const imageError = document.getElementById('imageError');
-let selectedImages = [];
-
-imageUpload.addEventListener('change', handleImageUpload);
-
-function handleImageUpload(event) {
-    const files = event.target.files;
-
-    // Clear previous error message and previews
-    imageError.style.display = 'none';
-    imagePreviews.innerHTML = '';
-    selectedImages = [];
-    
-    let errorFound = false;
-
-    // Process selected images
-    for (let i = 0; i < files.length; i++) {
-        if (selectedImages.length >= 5) break;
-
-        const file = files[i];
-        const reader = new FileReader();
-
-        reader.onload = function (e) {
-            const img = new Image();
-            img.src = e.target.result;
-            img.onload = function () {
-                const width = img.width;
-                const height = img.height;
-
-                // Check if the image is square
-                if (width === height) {
-                    selectedImages.push(img.src);
-
-                    // Append to preview container if it's a square
-                    const imgPreview = document.createElement('img');
-                    imgPreview.src = img.src;
-                    imgPreview.style.width = '100px';
-                    imgPreview.style.height = '100px';
-                    imgPreview.style.objectFit = 'cover';
-                    imgPreview.style.margin = '5px';
-                    imagePreviews.appendChild(imgPreview);
-
-                    // Stop further processing if limit is reached
-                    if (selectedImages.length >= 5) return;
-                } else {
-                    errorFound = true;
-                    imageError.style.display = 'block';
-                }
-            };
-        };
-        
-        reader.readAsDataURL(file);
-    }
-
-    if (errorFound) {
-        imageError.style.display = 'block';
-    }
 }
