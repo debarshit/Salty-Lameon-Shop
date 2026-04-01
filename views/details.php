@@ -1,6 +1,23 @@
 <?php
-  $productId = $_GET['product_id'];
-  $productDetails = fetchProductDetails($productId);
+  $isPreview = isset($_GET['preview']) && $_GET['preview'] == '1';
+  if ($isPreview) {
+    // Use dummy / passed data instead of DB
+    $productDetails = [
+        'ProductName' => $_GET['name'] ?? 'Product Name',
+        'ProductDescription' => $_GET['desc'] ?? 'Description',
+        'NewPrice' => $_GET['newPrice'] ?? 0,
+        'OldPrice' => $_GET['oldPrice'] ?? 0,
+        'SKU' => 'PREVIEW-SKU',
+        'Tags' => $_GET['tags'] ?? '',
+        'StockQuantity' => $_GET['stock'] ?? 10,
+        'ProductImage' => $_GET['image'] ?? '',
+        'CategoryName' => $_GET['category'] ?? 'Category',
+        'CategoryId' => 0,
+    ];
+  } else {
+    $productId = $_GET['product_id'];
+    $productDetails = fetchProductDetails($productId);
+  }
 
   if ($productDetails) {
     function escape($value) {

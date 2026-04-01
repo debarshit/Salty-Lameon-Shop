@@ -107,6 +107,8 @@
     // Function to fetch categories from the database
     function displayCategories() {
         global $shopLink;
+        // $isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+        $isAdmin = true;
 
         $query = "SELECT CategoryImage, CategoryName, CategoryId FROM categories WHERE IsAvailable = 1 LIMIT 8";
         $result = mysqli_query($shopLink, $query);
@@ -117,6 +119,13 @@
         }
 
         $categories_html = '';
+
+        if ($isAdmin) {
+            $categories_html .= '
+                <a href="add-category" class="category__item add-category">
+                    <h3 class="category__title">+ Add Category</h3>
+                </a>';
+        }
 
         while ($row = mysqli_fetch_assoc($result)) {
             $image = htmlspecialchars($row['CategoryImage']);
@@ -134,7 +143,12 @@
     }
 
     //function to fetch images from imagekit folder
+    $isPreview = isset($_GET['preview']) && $_GET['preview'] == '1';
     function fetchImagesFromImageKit($folderPath) {
+        global $isPreview;
+        if ($isPreview) {
+            return null;
+        }
         $apiUrl = 'https://api.imagekit.io/v1/files';
         $ch = curl_init();
     

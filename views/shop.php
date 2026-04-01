@@ -37,12 +37,21 @@
       <!--=============== PRODUCTS ===============-->
       <section class="products section--lg container">
         <?php
-              $categoryName = isset($_GET['category_name']) ? $_GET['category_name'] : null;
-              if ($categoryName) {
-                echo '<h3 class="section__title"><span>' . $categoryName . '</span></h3>';
-              } else {
-                echo '<h3 class="section__title"><span>All Products</span></h3>';
-              }
+          // $isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+          $isAdmin = true;
+          $categoryName = isset($_GET['category_name']) ? $_GET['category_name'] : null;
+          echo '<div style="display:flex; justify-content:space-between; align-items:center;">';
+          if ($categoryName) {
+            echo '<h3 class="section__title"><span>' . htmlspecialchars($categoryName) . '</span></h3>';
+          } else {
+            echo '<h3 class="section__title"><span>All Products</span></h3>';
+          }
+
+          // Admin-only button
+          if ($isAdmin) {
+            echo '<a href="add-product.php" class="btn btn--sm">+ Add Product</a>';
+          }
+          echo '</div>';
         ?>
 
         <div class="products__container grid" id="products-container">

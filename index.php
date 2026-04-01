@@ -1,7 +1,6 @@
 <?php
 
     include("functions.php");
-
     // Check if the aff_Id is passed in the URL
     if (isset($_GET['aff_id'])) {
       $affiliateId = $_GET['aff_id'];
@@ -20,7 +19,11 @@
       ]);
     }
 
+    $isPreview = isset($_GET['preview']) && $_GET['preview'] == '1';
     $page = isset($_GET['page']) ? $_GET['page'] : 'home';
+    if ($isPreview) {
+      $page = 'details';
+  }
 
     $pageData = []; // Default meta data
 
@@ -102,8 +105,9 @@
             ];
             break;
     }
-    
+    if (!$isPreview) {
     include("views/header.php");
+    }
 
     if ($page == 'login-register') {
 
@@ -146,12 +150,18 @@
         
       include("views/reset-password.php");
         
+    }else if ($page == 'add-category') {
+        
+      include("views/add-category.php");
+        
     }else {
         
       include("views/home.php");
         
     }
-                
+    
+    if (!$isPreview) {
     include("views/footer.php");
+    }
 
 ?>
