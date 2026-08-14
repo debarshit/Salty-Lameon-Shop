@@ -25,3 +25,53 @@
   .forgot-password-link:hover {
     text-decoration: underline;
   }
+
+  /*=============== CUSTOM CHECKBOX ===============*/
+
+  .checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-color);
+  }
+
+  .checkbox input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+
+    border: 2px solid var(--first-color);
+    border-radius: 4px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    margin: 0;
+    transition: all 0.2s ease;
+  }
+
+  .checkbox input[type="checkbox"]::before {
+    content: "✓";
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+
+    transform: scale(0);
+    transition: transform 0.15s ease-in-out;
+  }
+
+  .checkbox input[type="checkbox"]:checked {
+    background-color: var(--first-color);
+  }
+
+  .checkbox input[type="checkbox"]:checked::before {
+    transform: scale(1);
+  }

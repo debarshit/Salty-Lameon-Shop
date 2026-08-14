@@ -998,6 +998,7 @@
         $password   = $data['password'] ?? '';
         $confirmPwd = $data['signupPassCnf'] ?? '';
         $source     = $data['source'] ?? null;
+        $emailUpdates = $data['emailUpdates'] ?? false;
 
         if (!$name || !$email || !$password || !$confirmPwd) {
             echo json_encode(['message' => 'All fields are required']);
@@ -1027,6 +1028,41 @@
             'password' => $password, // hash later
             'sourceReferral' => $source
         ]);
+
+        if ($emailUpdates) {
+
+            $brevoData = [
+                "email" => $email,
+                "attributes" => [
+                    "FIRSTNAME" => $name,
+                    "SMS" => $phone,
+                    "SOURCE" => $source
+                ],
+                "listIds" => [2],
+                "updateEnabled" => true
+            ];
+
+            $ch = curl_init();
+
+            curl_setopt($ch, CURLOPT_URL, 'https://api.brevo.com/v3/contacts');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($brevoData));
+
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'accept: application/json',
+                'api-key: ' . $_ENV['BREVO_API_KEY'],
+                'content-type: application/json'
+            ]);
+
+            $response = curl_exec($ch);
+
+            if (curl_errno($ch)) {
+                error_log('Brevo Error: ' . curl_error($ch));
+            }
+
+            curl_close($ch);
+        }
 
         echo json_encode(['message' => 1]);
         exit;

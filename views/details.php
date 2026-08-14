@@ -48,6 +48,7 @@ if ($isPreview) {
     $productDetails = fetchProductDetails($productId);
 }
 
+$cartIcons = fetchImagesFromImageKit('common_assets/cart/');
 if ($productDetails) {
 
     function escape($value) {
@@ -98,7 +99,7 @@ if ($productDetails) {
         </ul>
     </section>
     <?php endif; ?>
-
+    
     <!--=============== DETAILS ===============-->
     <section class="details section--lg">
         <div class="details__container container grid">
@@ -142,8 +143,21 @@ if ($productDetails) {
 
             <!-- Details -->
             <div class="details__group">
-                <h3 class="details__title"><?= $productName ?></h3>
-                <p class="details__category">Category: <span><?= $categoryName ?></span></p>
+                <h3 class="details__title"><?= $productName ?>
+                </h3>
+                <p class="details__category">Category: <span><?= $categoryName ?></span>
+                <?php // Admin-only button
+                $accessToken = getAccessTokenFromSession();
+                $isAdmin = false;
+
+                if ($accessToken) {
+                    $role = getUserRoleFromAccessToken($accessToken);
+                    $isAdmin = ($role === 'admin');
+                }
+                if ($isAdmin && !$isPreview) {
+                    echo '<a style="margin-bottom: 10px;" href="admin?edit=' . $productId . '" class="btn btn--sm">Edit Product</a>';
+                } ?>
+                </p>
 
                 <div class="details__price flex">
                     <span class="new__price">₹<?= number_format($newPrice, 2) ?></span>
@@ -362,7 +376,7 @@ if ($productDetails) {
 <!-- ── Full-page JS (only loaded on the real product page) ── -->
 <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 <script>
-
+const cartIcons = <?= json_encode($cartIcons); ?>;
 /*=============== IMAGE GALLERY ===============*/
 function imgGallery() {
     const mainImg  = document.querySelector('.details__img');
@@ -436,8 +450,18 @@ document.getElementById('addToCartBtn')?.addEventListener('click', function (e) 
     const customization = hash ? decodeURIComponent(hash) : null;
 
     const rect = e.target.getBoundingClientRect();
-    const anim = document.createElement('div');
+    let randomIcon = null;
+
+    if (cartIcons && cartIcons.length > 0) {
+        randomIcon = cartIcons[Math.floor(Math.random() * cartIcons.length)];
+    }
+
+    const anim = document.createElement('img');
     anim.classList.add('add-to-cart-animation');
+
+    if (randomIcon) {
+        anim.src = randomIcon;
+    }
     anim.style.top  = `${rect.top  + rect.height / 2}px`;
     anim.style.left = `${rect.left + rect.width  / 2}px`;
     document.body.appendChild(anim);

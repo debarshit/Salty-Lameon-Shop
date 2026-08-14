@@ -1,3 +1,4 @@
+const IS_EDIT_MODE = typeof EDIT_MODE !== 'undefined' && EDIT_MODE === true;
 // Update button text based on selected radio button
 function updateButtonText() {
     var radioButtons = document.querySelectorAll('.form input[type="radio"]');
@@ -5,7 +6,7 @@ function updateButtonText() {
     var button = document.querySelector('#submitBtn');
 
     if (selectedIndex === radioButtons.length - 1) {
-        button.textContent = 'Submit';
+        button.textContent = IS_EDIT_MODE ? "Save Changes" : 'Submit';
     } else {
         button.textContent = 'Next';
     }
@@ -28,6 +29,7 @@ document.querySelector('#submitBtn').addEventListener('click', function() {
 
     // Move to the next stage
     if (selectedIndex + 1 < radioButtons.length) {
+        window._wizardAdvancing = true;
         radioButtons[selectedIndex + 1].checked = true;
         updateButtonText();
     } else {
@@ -135,47 +137,6 @@ function validateAndSubmit() {
 //     .catch(error => console.error('Error:', error));
 // 	console.log(finalData);
 // }
-
-document.getElementById('loader').style.display = 'block';
-
-const formData = new FormData();
-    formData.append('productName', productName);
-    formData.append('sku', sku);
-    formData.append('description', description);
-    formData.append('oldPrice', oldPrice);
-    formData.append('newPrice', newPrice);
-    formData.append('stockQuantity', stockQuantity);
-    formData.append('categoryName', categoryName);
-
-    // Append each selected image file to FormData
-    Array.from(productImages).forEach((image, index) => {
-        formData.append(`productImages[]`, image);
-    });
-
-    formData.append('tags', JSON.stringify(tags));
-    formData.append('promotionalLabels', JSON.stringify(promotionalLabels));
-    formData.append('discountLabels', JSON.stringify(discountLabels));
-    formData.append('specialCategories', JSON.stringify(specialCategories));
-    formData.append('additionalInfos', JSON.stringify(additionalInfos));
-    formData.append('customizations', JSON.stringify(customizations));
-
-    fetch('actions.php?action=insertProductDetails', {
-        method: 'POST',
-        body: formData,
-    })
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById('loader').style.display = 'none';
-        if (data.success) {
-            alert('Product inserted successfully!');
-        } else {
-            alert('Error inserting product: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error)
-        document.getElementById('loader').style.display = 'none';
-    });
 }
 
 // Event delegation for removing rows
@@ -501,7 +462,7 @@ function fetchDiscLabels(query) {
                         var queries = currentValue.split(',').map(item => item.trim()).filter(item => item.length > 0);
                         queries[queries.length - 1] = label.Name;
 
-                        var inputField = document.getElementById("tags");
+                        var inputField = document.getElementById("discountLabels");
                         inputField.value = queries.join(', ');
 
                         inputField.setSelectionRange(inputField.value.length, inputField.value.length);

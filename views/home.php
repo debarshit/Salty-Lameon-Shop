@@ -50,7 +50,7 @@ $artworks = fetchImagesFromImageKit('/artworks');
                 </div>
             </div>
             <div class="featured__item featured__item--small">
-                <img src="assets/img/logo.svg" alt="Featured">
+                <img src="https://ik.imagekit.io/zwbctwlsb/common_assets/hero/DP.png" alt="Featured">
             </div>
             </div>
         </section>

@@ -1,6 +1,18 @@
 <?php
 include("functions.php");
 include("../functions.php");
+$accessToken = getAccessTokenFromSession();
+$isAdmin = false;
+
+if ($accessToken) {
+    $role = getUserRoleFromAccessToken($accessToken);
+    $isAdmin = ($role === 'admin');
+}
+
+if (!$isAdmin) {
+    header("Location: ../index.php");
+    exit();
+}
 
 // ── Edit mode: load existing product data ──────────────────────────────────
 $editMode   = isset($_GET['edit']) && !empty($_GET['edit']);
@@ -21,6 +33,7 @@ if ($editMode && $editId > 0) {
         $prefill['promotionalLabels']  = $product['PromotionalLabel']   ?? '';
         $prefill['discountLabels']     = $product['DiscountLabel']      ?? '';
         $prefill['specialCategories']  = $product['SpecialCategories']  ?? '';
+        $prefill['existingImageFolder'] = $product['ProductImage'] ?? '';
 
         $customizations = fetchCustomizationOptions($editId);
         $prefill['customizations'] = $customizations ? $customizations : [];
@@ -148,7 +161,7 @@ if ($editMode && $editId > 0) {
                 <!-- Panel 3 – Media -->
                 <div data-panel="three">
                     <h4>Media</h4>
-                    <?php if ($editMode && !empty($prefill['productImage'])): ?>
+                    <?php if ($editMode && !empty($prefill['existingImageFolder'])): ?>
                         <p style="font-size:.8rem;color:#6b7280;margin-bottom:.5rem;">
                             Current images will be kept unless you upload new ones.
                         </p>
@@ -246,6 +259,9 @@ if ($editMode && $editId > 0) {
 </div><!-- /container -->
 
 <!--=============== MAIN JS (step wizard etc.) ===============-->
+<script>
+    window.EDIT_MODE = <?= $editMode ? 'true' : 'false' ?>;
+</script>
 <script src="assets/js/main.js"></script>
 
 <script>
@@ -267,6 +283,11 @@ function prefillForm() {
         const el = document.getElementById(id);
         if (el && val !== undefined && val !== null) el.value = val;
     };
+
+    // Show existing ImageKit images in edit mode
+    if (PREFILL_DATA.existingImageFolder) {
+        fetchExistingImages(PREFILL_DATA.existingImageFolder);
+    }
 
     set('productName',       PREFILL_DATA.productName);
     set('description',       PREFILL_DATA.description);
@@ -333,6 +354,25 @@ function escHtml(str) {
     return String(str ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+async function fetchExistingImages(folderPath) {
+    try {
+        const res  = await fetch(`actions.php?action=getProductImages&folder=${encodeURIComponent(folderPath)}`);
+        const json = await res.json();
+        if (!json.urls) return;
+
+        imagePreviews.innerHTML = '';
+        json.urls.forEach(url => {
+            const img  = document.createElement('img');
+            img.src    = url;
+            img.title  = 'existing';
+            img.dataset.existing = '1';   // flag: these are already in ImageKit
+            imagePreviews.appendChild(img);
+        });
+        schedulePreview();
+    } catch (e) {
+        console.error('Could not load existing images', e);
+    }
+}
 // ─────────────────────────────────────────────────────────────
 //  COLLECT FORM STATE
 // ─────────────────────────────────────────────────────────────
@@ -527,12 +567,17 @@ imageUpload.addEventListener('change', () => {
 document.getElementById('submitBtn')?.addEventListener('click', async () => {
     // If the step wizard is not on last step, let main.js handle "Next"
     // We only intercept submit on the final step.
+    if (window._wizardAdvancing) {
+        window._wizardAdvancing = false;  // consume it
+        return;
+    }
     const checkedStage = document.querySelector('input[name="stage"]:checked');
     if (checkedStage && checkedStage.id !== 'six') return;   // let wizard advance
+    document.getElementById('loader').style.display = 'block';
 
     const data          = collectFormData();
-    data.action         = EDIT_MODE ? 'updateProduct' : 'insertProduct';
     data.productId      = EDIT_ID;
+    data.imageKitFolder = PREFILL_DATA.existingImageFolder ?? '';
 
     // Attach raw files as base64 for upload
     const files  = [...(imageUpload.files || [])];
@@ -543,13 +588,13 @@ document.getElementById('submitBtn')?.addEventListener('click', async () => {
     document.getElementById('submitBtn').disabled = true;
 
     try {
-        const res  = await fetch('actions.php?action=' + data.action, {
+        const res  = await fetch('actions.php?action=' + (EDIT_MODE ? 'updateProductDetails' : 'insertProductDetails'), {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(data),
         });
         const json = await res.json();
-
+        document.getElementById('loader').style.display = 'none';
         if (json.success || json.message == '1') {
             alert(EDIT_MODE ? 'Product updated!' : 'Product added!');
             if (!EDIT_MODE && json.productId) {

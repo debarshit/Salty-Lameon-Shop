@@ -1,5 +1,12 @@
 <?php
   $cartIcons = fetchImagesFromImageKit('common_assets/cart/');
+  $accessToken = getAccessTokenFromSession();
+  $isAdmin = false;
+
+  if ($accessToken) {
+      $role = getUserRoleFromAccessToken($accessToken);
+      $isAdmin = ($role === 'admin');
+  }
 ?>
 <link rel="stylesheet" href="assets/css/shop.css" />
     <!--=============== MAIN ===============-->
@@ -37,8 +44,6 @@
       <!--=============== PRODUCTS ===============-->
       <section class="products section--lg container">
         <?php
-          // $isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
-          $isAdmin = true;
           $categoryName = isset($_GET['category_name']) ? $_GET['category_name'] : null;
           echo '<div style="display:flex; justify-content:space-between; align-items:center;">';
           if ($categoryName) {
@@ -49,7 +54,7 @@
 
           // Admin-only button
           if ($isAdmin) {
-            echo '<a href="add-product.php" class="btn btn--sm">+ Add Product</a>';
+            echo '<a style="margin-bottom: 10px;" href="admin" class="btn btn--sm">+ Add Product</a>';
           }
           echo '</div>';
         ?>

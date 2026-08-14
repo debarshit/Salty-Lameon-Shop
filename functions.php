@@ -107,8 +107,13 @@
     // Function to fetch categories from the database
     function displayCategories() {
         global $shopLink;
-        // $isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
-        $isAdmin = true;
+        $accessToken = getAccessTokenFromSession();
+        $isAdmin = false;
+
+        if ($accessToken) {
+            $role = getUserRoleFromAccessToken($accessToken);
+            $isAdmin = ($role === 'admin');
+        }
 
         $query = "SELECT CategoryImage, CategoryName, CategoryId FROM categories WHERE IsAvailable = 1 LIMIT 8";
         $result = mysqli_query($shopLink, $query);
@@ -131,7 +136,11 @@
             $image = htmlspecialchars($row['CategoryImage']);
             $name = htmlspecialchars($row['CategoryName']);
             $categoryId = htmlspecialchars($row['CategoryId']);
-            $categoryUrl = "shop/{$categoryId}/" . urlencode($name);
+            $slug = strtolower(trim($name));
+            $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
+            $slug = trim($slug, '-');
+
+            $categoryUrl = "shop/{$categoryId}/{$slug}";
             $categories_html .= '
                 <a href="' . $categoryUrl . '" class="category__item swiper-slide">
                     <!-- <img src="' . $image . '" alt="" class="category__img"> -->
@@ -648,6 +657,19 @@ function getUserIdFromAccessToken($accessToken) {
         $decoded = JWT::decode($accessToken, new Key($secretKey, 'HS256'));
 
         return $decoded->userId ?? null;
+
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
+function getUserRoleFromAccessToken($accessToken) {
+    $secretKey = 'my_super_secure_secret_key_2026_very_long_random';
+
+    try {
+        $decoded = JWT::decode($accessToken, new Key($secretKey, 'HS256'));
+
+        return $decoded->role ?? null;
 
     } catch (Exception $e) {
         return null;
