@@ -519,7 +519,8 @@
     
         }
     
-        $paymentStatus = ($_POST['paymentMethod'] == 'online') ? 1 : 0; // 1 for online, 0 for offline
+        // For online payments, initially set PaymentStatus = 0 (Unpaid) until payment is confirmed.
+        $paymentStatus = 0;
         $shippingCharge = $_POST['shippingCharge'];
         $cartTotal = $_POST['totalAmount'];
         $addressId = $isGuest ? null : $_POST['addressId']; // Set addressId to null for guests
@@ -1113,13 +1114,14 @@
 
     // Generate unique link_id
     $link_id = 'link_' . time() . '_' . uniqid();
+    $orderId = $input['orderId'] ?? 0;
 
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
     $host = $_SERVER['HTTP_HOST'];
     $basePath = dirname($_SERVER['PHP_SELF']);
 
     $returnUrl = $protocol . $host . $basePath .
-        "/actions.php?action=paymentSuccessful&linkId=" . $link_id;
+        "/actions.php?action=paymentSuccessful&linkId=" . $link_id . "&orderId=" . $orderId;
 
     $payload = [
         "customer_details" => [
@@ -1190,12 +1192,21 @@
                 $tokenResult = getUserIdFromToken($headers, $secretKey);
                 $custId = $input['customerId'] ?? $tokenResult['userId'] ?? 0;
             } catch (Exception $e) {
-                $userId = null;
+                $custId = 0;
             }
         }
 
-        $custPhone = $input['customerPhone'];
-        $amount = $input['amount'];
+        // If not authenticated via header, try session cookie
+        if (!$custId) {
+            $accessToken = getAccessTokenFromSession();
+            if ($accessToken) {
+                $custId = getUserIdFromAccessToken($accessToken);
+            }
+        }
+
+        $custPhone = $input['customerPhone'] ?? null;
+        $amount = $input['amount'] ?? null;
+        $orderId = isset($_GET['orderId']) ? (int)$_GET['orderId'] : 0;
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $_ENV['CASHFREE_API_URL'] .'/'. $_GET['linkId']);
@@ -1212,7 +1223,10 @@
         $responseData = json_decode($response, true);
 
         // Check if payment is successful
-        if ($responseData['link_status'] == "PAID") {
+        if (isset($responseData['link_status']) && $responseData['link_status'] == "PAID") {
+             $custPhone = $custPhone ?? $responseData['customer_details']['customer_phone'] ?? null;
+             $amount = $amount ?? $responseData['link_amount'] ?? 0;
+
              if ($custPhone) {
                 // Step 1: Check if payment already exists
                 $checkQuery = "SELECT COUNT(*) FROM payments WHERE LinkId = ?";
@@ -1246,11 +1260,38 @@
                 }
             }
 
-            // Payment successful, send the status to frontend
-            echo json_encode(["status" => "success. You can close this window."]);
+            // Update the order's PaymentStatus to 1 (Paid)
+            if ($orderId > 0) {
+                $updateQuery = "UPDATE orders SET PaymentStatus = 1 WHERE OrderId = ?";
+                $stmtUpdate = mysqli_prepare($shopLink, $updateQuery);
+                mysqli_stmt_bind_param($stmtUpdate, "i", $orderId);
+                mysqli_stmt_execute($stmtUpdate);
+                mysqli_stmt_close($stmtUpdate);
+            }
+
+            if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+                $host = $_SERVER['HTTP_HOST'];
+                $basePath = dirname($_SERVER['PHP_SELF']);
+                
+                header("Location: " . $protocol . $host . $basePath . "/checkout?payment_success=true&orderId=" . $orderId . "&amount=" . urlencode($amount));
+                exit;
+            } else {
+                // Payment successful, send the status to frontend
+                echo json_encode(["status" => "success. You can close this window."]);
+            }
         } else {
             // Payment not successful
-            echo json_encode(["status" => "failed", "error" => "Payment not successful"]);
+            if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+                $host = $_SERVER['HTTP_HOST'];
+                $basePath = dirname($_SERVER['PHP_SELF']);
+                
+                header("Location: " . $protocol . $host . $basePath . "/checkout?payment_failed=true");
+                exit;
+            } else {
+                echo json_encode(["status" => "failed", "error" => "Payment not successful"]);
+            }
         }
 
         curl_close($ch);

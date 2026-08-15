@@ -187,6 +187,38 @@
     * Initialize the checkout page based on user login status
     */
     function initCheckoutPage() {
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      // Handle payment success redirect on mobile
+      if (urlParams.has('payment_success') && urlParams.get('payment_success') === 'true') {
+        const orderId = urlParams.get('orderId');
+        const amount = urlParams.get('amount') || '0';
+        
+        // Track purchase for analytics
+        if (typeof fbq === 'function') {
+          fbq('track', 'Purchase', {
+            currency: "INR", 
+            value: amount
+          });
+        }
+        
+        // Clear guest cart if applicable
+        if (!isLoggedIn) {
+          localStorage.removeItem('guestCart');
+        }
+        
+        // Show success animation and redirect
+        displaySuccessAnimation(function() {
+          window.location.href = 'order-details?orderId=' + orderId;
+        });
+        return; // Halt further checkout page load/init
+      }
+      
+      // Handle payment failure redirect on mobile
+      if (urlParams.has('payment_failed') && urlParams.get('payment_failed') === 'true') {
+        showMessage("Payment was not successful. Please try again.", 'error');
+      }
+
       if (isLoggedIn) {
         setupLoggedInCheckout();
         setupBillingCollapse();
@@ -584,18 +616,30 @@
         
         const planPrice = document.querySelector('input[name="totalAmount"]').value;
         
-        // Request to initiate online payment
-        fetch('actions.php?action=paymentRequest', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customerName,
-            customerPhone,
-            amount: planPrice
+        // Step 1: Create the pending order first
+        submitOrder(formToUse)
+        .then(orderData => {
+          if (!orderData || !orderData.success || !orderData.orderId) {
+            throw new Error("Failed to place pending order");
+          }
+          
+          const orderId = orderData.orderId;
+          
+          // Step 2: Request to initiate online payment
+          return fetch('actions.php?action=paymentRequest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orderId,
+              customerName,
+              customerPhone,
+              amount: planPrice
+            })
           })
+          .then(response => response.json())
+          .then(data => ({ data, orderId }));
         })
-        .then(response => response.json())
-        .then(data => {
+        .then(({ data, orderId }) => {
           isRequestInProgress = false;
           
           if (data.link_url) {
@@ -621,16 +665,21 @@
               isLoggedIn ? selectedAddressId : null,
               paymentMethod,
               formToUse,
-              paymentWindow
+              paymentWindow,
+              orderId
             );
           } else {
             showMessage("Payment link creation failed. Please try again.", 'error');
+            placeOrderButton.disabled = false;
+            placeOrderButton.textContent = "Place Order";
           }
         })
         .catch(error => {
           console.error("Error occurred during payment request:", error);
           isRequestInProgress = false;
           showMessage("Payment processing failed. Please try again.", 'error');
+          placeOrderButton.disabled = false;
+          placeOrderButton.textContent = "Place Order";
         });
       } else {
         // Cash on delivery - submit directly
@@ -641,7 +690,7 @@
     /**
     * Poll payment status until completed
     */
-    function pollPaymentStatus(linkId, customerPhone, amount, addressId, paymentMethod, formData, paymentWindow) {
+    function pollPaymentStatus(linkId, customerPhone, amount, addressId, paymentMethod, formData, paymentWindow, orderId = 0) {
       const POLL_TIMEOUT = 300000; // 5 minutes
       let timeoutReached = false;
 
@@ -665,7 +714,7 @@
           headers['Authorization'] = 'Bearer ' + accessToken;
         }
 
-        fetch(`actions.php?action=paymentSuccessful&linkId=${linkId}`, {
+        fetch(`actions.php?action=paymentSuccessful&linkId=${linkId}&orderId=${orderId}`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -686,7 +735,23 @@
                 paymentWindow.close();
               }
 
-              submitOrder(formData);
+              // Track purchase for analytics
+              if (typeof fbq === 'function') {
+                fbq('track', 'Purchase', {
+                  currency: "INR", 
+                  value: amount
+                });
+              }
+              
+              // Clear guest cart if applicable
+              if (!isLoggedIn) {
+                localStorage.removeItem('guestCart');
+              }
+              
+              // Show success animation and redirect
+              displaySuccessAnimation(function() {
+                window.location.href = 'order-details?orderId=' + orderId;
+              });
             }
           })
           .catch(error => {
@@ -700,17 +765,23 @@
     * Submit the order to the server
     * 
     * @param {FormData} customFormData - Optional form data for guest checkout
+    * @returns {Promise} Fetch promise
     */
     function submitOrder(customFormData = null) {
       const formToSubmit = customFormData || new FormData(orderForm);
       
-      fetch('actions.php?action=placeOrder', {
+      return fetch('actions.php?action=placeOrder', {
         method: 'POST',
         body: formToSubmit
       })
       .then(response => response.json())
       .then(data => {
         if (data.success) {
+          // If paying online, bypass clearing cart and success animation for now
+          if (paymentMethod === 'online') {
+            return data;
+          }
+
           // Track purchase for analytics
           if (typeof fbq === 'function') {
             fbq('track', 'Purchase', {
@@ -729,15 +800,22 @@
             // window.location.href = 'order-details?orderId=' + data.orderId;
             window.location.reload();
           });
+          return data;
         } else {
           showMessage(data.message || 'An error occurred while placing the order.', 'error');
+          isRequestInProgress = false;
+          placeOrderButton.disabled = false;
+          placeOrderButton.textContent = "Place Order";
+          throw new Error(data.message || 'Order placement failed');
         }
-        isRequestInProgress = false;
       })
       .catch(error => {
         console.error("Error occurred during order placement:", error);
         showMessage('An error occurred while placing the order. Please try again.', 'error');
         isRequestInProgress = false;
+        placeOrderButton.disabled = false;
+        placeOrderButton.textContent = "Place Order";
+        throw error;
       });
     }
     
