@@ -548,6 +548,11 @@
         return false;
       }
       
+      if (!isValidPhone(guestPhone)) {
+        showMessage("Please enter a valid 10 to 12-digit phone number.", 'error');
+        return false;
+      }
+      
       if (!isValidPincode(guestPincode)) {
         showMessage("Please enter a valid 6-digit pincode.", 'error');
         return false;
@@ -606,6 +611,23 @@
           // Get from hidden fields or data attributes for logged-in users
           customerName = document.querySelector('[data-customer-name]')?.getAttribute('data-customer-name') || '';
           customerPhone = document.querySelector('[data-customer-phone]')?.getAttribute('data-customer-phone') || '';
+          
+          if (!customerName.trim() || !customerPhone.trim()) {
+            showMessage("Your profile is missing a name or phone number. Please update your account details before checking out.", 'error');
+            placeOrderButton.disabled = false;
+            placeOrderButton.textContent = "Place Order";
+            isRequestInProgress = false;
+            return;
+          }
+          
+          if (!isValidPhone(customerPhone)) {
+            showMessage("Your profile phone number is invalid. Please enter a valid 10 to 12-digit phone number in your account settings.", 'error');
+            placeOrderButton.disabled = false;
+            placeOrderButton.textContent = "Place Order";
+            isRequestInProgress = false;
+            return;
+          }
+          
           formToUse = new FormData(orderForm);
         } else {
           // Get from guest form
@@ -669,7 +691,15 @@
               orderId
             );
           } else {
-            showMessage("Payment link creation failed. Please try again.", 'error');
+            let errorMsg = "Payment link creation failed. Please try again.";
+            if (data && data.message) {
+              if (data.message.includes('customer_phone') || data.message.includes('phone')) {
+                errorMsg = "Invalid phone number. Please check your contact details and try again.";
+              } else {
+                errorMsg = data.message;
+              }
+            }
+            showMessage(errorMsg, 'error');
             placeOrderButton.disabled = false;
             placeOrderButton.textContent = "Place Order";
           }
@@ -859,6 +889,15 @@
     function isValidEmail(email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       return emailRegex.test(email);
+    }
+
+    /**
+    * Validate if phone number is valid (10 to 12 digits)
+    */
+    function isValidPhone(phone) {
+      const cleanPhone = phone.replace(/[\s\-\+\(\)]/g, '');
+      const phoneRegex = /^[0-9]{10,12}$/;
+      return phoneRegex.test(cleanPhone);
     }
   });
 
