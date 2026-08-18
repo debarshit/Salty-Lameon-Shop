@@ -276,6 +276,20 @@ if (!$isAdmin) {
 
     .data-table tr:last-child td { border-bottom: none; }
     .data-table tr:hover td { background: #fafafa; }
+    
+    .data-table tr.clickable-row {
+      cursor: pointer;
+    }
+    .data-table tr.clickable-row:hover td {
+      background: #fef2f2 !important;
+    }
+    .data-table tr.clickable-row .order-view-indicator {
+      transition: transform 0.15s ease;
+      display: inline-block;
+    }
+    .data-table tr.clickable-row:hover .order-view-indicator {
+      transform: scale(1.2);
+    }
 
     /* Status badges */
     .badge {
@@ -529,7 +543,7 @@ if (!$isAdmin) {
       position: fixed;
       inset: 0;
       background: rgba(0,0,0,.45);
-      z-index: 200;
+      z-index: 2000;
       align-items: center;
       justify-content: center;
       padding: 1rem;
@@ -651,7 +665,7 @@ if (!$isAdmin) {
       padding: .6rem 1.1rem;
       border-radius: var(--radius);
       font-size: var(--small-font);
-      z-index: 999;
+      z-index: 3000;
       opacity: 0;
       transform: translateY(8px);
       transition: opacity .2s, transform .2s;
@@ -1262,9 +1276,14 @@ function renderOrdersTable(rows) {
     });
   });
 
-  wrap.querySelectorAll('.order-detail-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const id = parseInt(this.dataset.id);
+  // Wire up row click to open order details modal (excluding interactive controls)
+  wrap.querySelectorAll('#ordersTable tbody tr').forEach(row => {
+    row.classList.add('clickable-row');
+    row.addEventListener('click', function(e) {
+      if (e.target.closest('.status-select') || e.target.closest('.payment-toggle')) {
+        return;
+      }
+      const id = parseInt(this.id.replace('order-row-', ''));
       openOrderModal(id);
     });
   });
@@ -1293,10 +1312,10 @@ function orderRow(r) {
         </label>
       </td>
       <td>${r.CreatedAt.slice(0, 16)}</td>
-      <td>
-        <button class="order-detail-btn btn-refresh" data-id="${r.OrderId}" title="View / edit details" style="padding:.2rem .5rem;font-size:.75rem;">
-          ✏️
-        </button>
+      <td style="text-align: center;">
+        <span class="order-view-indicator" title="View details" style="font-size: 1.15rem; cursor: pointer; color: var(--first-color);">
+          👁️
+        </span>
       </td>
     </tr>`;
 }
