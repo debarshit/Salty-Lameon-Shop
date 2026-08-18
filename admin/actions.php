@@ -874,5 +874,47 @@
         echo json_encode(['urls' => $urls]);
         exit;
     }
+
+    if (isset($_GET['action']) && $_GET['action'] === "saveAdminPushSubscription") {
+        header('Content-Type: application/json');
+        
+        $accessToken = getAccessTokenFromSession();
+        $isAdmin = false;
+        $userId = 0;
+        if ($accessToken) {
+            $role = getUserRoleFromAccessToken($accessToken);
+            $isAdmin = ($role === 'admin');
+            $userId = getUserIdFromAccessToken($accessToken);
+        }
+
+        if (!$isAdmin || !$userId) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Forbidden']);
+            exit;
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        $endpoint = $input['endpoint'] ?? null;
+        $p256dh = $input['keys']['p256dh'] ?? null;
+        $auth = $input['keys']['auth'] ?? null;
+
+        if (!$endpoint || !$p256dh || !$auth) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Invalid subscription data']);
+            exit;
+        }
+
+        $stmt = mysqli_prepare($link, "INSERT INTO admin_push_subscriptions (UserId, endpoint, p256dh, auth) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE UserId = ?, p256dh = ?, auth = ?");
+        mysqli_stmt_bind_param($stmt, 'isssiss', $userId, $endpoint, $p256dh, $auth, $userId, $p256dh, $auth);
+        
+        if (mysqli_stmt_execute($stmt)) {
+            echo json_encode(['success' => true]);
+        } else {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => mysqli_error($link)]);
+        }
+        mysqli_stmt_close($stmt);
+        exit;
+    }
     
     mysqli_close($link);

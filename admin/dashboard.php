@@ -19,9 +19,27 @@ if (!$isAdmin) {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sales Dashboard — The Salty</title>
+  <link rel="manifest" href="manifest.json">
+  <!-- Mobile web app meta tags for Add to Home Screen -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Salty Admin">
+  <link rel="apple-touch-icon" href="../assets/img/logo.svg">
+
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('Admin Service Worker registered:', reg.scope))
+          .catch(err => console.error('Admin Service Worker registration failed:', err));
+      });
+    }
+  </script>
 
   <style>
     /* ── CSS Variables — mirror the existing site palette ─────────── */
@@ -301,12 +319,35 @@ if (!$isAdmin) {
       .chart-row-3 { grid-template-columns: 1fr 1fr; }
     }
 
-    @media (max-width: 600px) {
+    @media (max-width: 768px) {
       .sidebar     { display: none; }
       .content     { padding: 1rem; }
       .kpi-grid    { grid-template-columns: 1fr 1fr; }
       .chart-row-3 { grid-template-columns: 1fr; }
-      .topbar      { padding: .7rem 1rem; }
+      .topbar      {
+        padding: 1rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: .8rem;
+      }
+      .topbar > div {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .status-select {
+        padding: .35rem .6rem !important;
+        padding-right: 1.6rem !important;
+        font-size: .8rem !important;
+      }
+      .data-table td {
+        padding: .8rem .75rem !important;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .modal__grid { grid-template-columns: 1fr !important; gap: .6rem !important; }
+      .modal__footer { flex-direction: column !important; gap: .5rem !important; }
+      .modal__footer button { width: 100% !important; margin: 0 !important; }
     }
 
     /* Mini nav for mobile */
@@ -318,8 +359,9 @@ if (!$isAdmin) {
       right: 0;
       background: var(--container-color);
       border-top: 1px solid var(--border-color);
-      padding: .5rem 0;
-      z-index: 100;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.06);
+      padding: .6rem 0 calc(.6rem + env(safe-area-inset-bottom));
+      z-index: 1000;
       justify-content: space-around;
     }
 
@@ -327,16 +369,33 @@ if (!$isAdmin) {
       display: flex;
       flex-direction: column;
       align-items: center;
-      font-size: .65rem;
+      font-size: .75rem;
       cursor: pointer;
       color: var(--text-color-light);
-      gap: 2px;
+      gap: 3px;
+      flex: 1;
+      text-align: center;
+      transition: color 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .mobile-nav__item.active { color: var(--first-color); }
-    .mobile-nav__item .icon { font-size: 1.2rem; }
+    .mobile-nav__item.active {
+      color: var(--first-color);
+      font-weight: 600;
+    }
 
-    @media (max-width: 600px) { .mobile-nav { display: flex; } .content { padding-bottom: 4.5rem; } }
+    .mobile-nav__item .icon {
+      font-size: 1.3rem;
+    }
+
+    @media (max-width: 768px) {
+      .mobile-nav {
+        display: flex;
+      }
+      .content {
+        padding-bottom: 6rem;
+      }
+    }
 
     /* Refresh button */
     .btn-refresh {
@@ -752,8 +811,14 @@ if (!$isAdmin) {
 
     <!-- Top bar -->
     <div class="topbar">
-      <h1 id="pageTitle">Overview</h1>
-      <div style="display:flex;align-items:center;gap:.8rem;">
+      <div style="display:flex;align-items:center;gap:.75rem;">
+        <a href="../home" style="text-decoration:none;font-size:1.1rem;display:flex;align-items:center;gap:.3rem;" title="Back to Shop">
+          🏠 <span style="font-size:.85rem;color:var(--text-color-light);font-weight:500;">Shop Home</span>
+        </a>
+        <span style="color:var(--border-color-alt);font-size:.9rem;">|</span>
+        <h1 id="pageTitle">Overview</h1>
+      </div>
+      <div style="display:flex;align-items:center;gap:.8rem;" class="topbar__actions" id="topbarActions">
         <div class="range-btns" id="rangeBtns">
           <button class="range-btn" data-range="7">7D</button>
           <button class="range-btn active" data-range="30">30D</button>
@@ -840,7 +905,6 @@ if (!$isAdmin) {
         </div>
       </div>
     </div>
-    <div class="modal__footer">
     <div class="modal__footer">
       <button class="btn-secondary" id="modalCancelBtn">Cancel</button>
       <button class="btn-primary"   id="modalSaveBtn">Save Changes</button>
@@ -1677,8 +1741,58 @@ $('refreshBtn').addEventListener('click', () => {
   setTimeout(() => btn.classList.remove('loading'), 800);
 });
 
+/* ─ push notifications subscription ─ */
+function urlB64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+async function subscribeAdminToPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    
+    if (Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return;
+    } else if (Notification.permission !== 'granted') {
+      return;
+    }
+
+    if (!sub) {
+      const applicationServerKey = urlB64ToUint8Array('BA98sR8lNAUUcfJ4JfLzqmpUEaDy4hLWfzoPCjtejclHgSxUCXxMoEXIMl4mWkH5ZoiWl7agdSsCKZ3DYXzKxgE');
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey
+      });
+    }
+
+    await fetch('actions.php?action=saveAdminPushSubscription', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sub)
+    });
+  } catch (err) {
+    console.error('Push subscription failed:', err);
+  }
+}
+
 /* ─ init ─ */
 setView('overview', currentRange);
+subscribeAdminToPush();
 </script>
 </body>
 </html>

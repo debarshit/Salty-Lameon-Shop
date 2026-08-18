@@ -596,6 +596,7 @@
                     }
                 }
                 mysqli_commit($shopLink);
+                notifyAdminsNewOrder($orderId, $cartTotal);
                 echo json_encode(['success' => true, 'orderId' => $orderId]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Error: Unable to create order.']);

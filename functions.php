@@ -9,6 +9,8 @@
 
     use Firebase\JWT\JWT;
     use Firebase\JWT\Key;
+    use Minishlink\WebPush\WebPush;
+    use Minishlink\WebPush\Subscription;
 
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
     $dotenv->load();
@@ -1333,4 +1335,56 @@ function fetchOrderDetails($orderId) {
     echo '</table>';
 
     return;
+}
+
+function notifyAdminsNewOrder($orderId, $totalAmount) {
+    global $shopLink;
+
+    $publicKey = $_ENV['VAPID_PUBLIC_KEY'] ?? '';
+    $privateKey = $_ENV['VAPID_PRIVATE_KEY'] ?? '';
+
+    if (empty($publicKey) || empty($privateKey)) {
+        return;
+    }
+
+    $query = "SELECT endpoint, p256dh, auth FROM admin_push_subscriptions";
+    $result = mysqli_query($shopLink, $query);
+
+    if (!$result || mysqli_num_rows($result) === 0) {
+        return;
+    }
+
+    $auth = [
+        'VAPID' => [
+            'subject' => 'mailto:admin@biblophile.com',
+            'publicKey' => $publicKey,
+            'privateKey' => $privateKey
+        ]
+    ];
+
+    try {
+        $webPush = new WebPush($auth);
+        $payload = json_encode([
+            'title' => 'New Order Alert! 🛒',
+            'body' => "Order #$orderId has been placed for a total of ₹" . number_format($totalAmount) . ".",
+            'url' => 'admin/dashboard.php?section=orders'
+        ]);
+
+        while ($row = mysqli_fetch_assoc($result)) {
+            $subscription = Subscription::create([
+                'endpoint' => $row['endpoint'],
+                'keys' => [
+                    'p256dh' => $row['p256dh'],
+                    'auth' => $row['auth']
+                ]
+            ]);
+            $webPush->queueNotification($subscription, $payload);
+        }
+
+        foreach ($webPush->flush() as $report) {
+            // Push reports can be logged here if needed
+        }
+    } catch (\Exception $e) {
+        error_log("Failed to send web push notification: " . $e->getMessage());
+    }
 }

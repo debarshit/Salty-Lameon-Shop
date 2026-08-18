@@ -48,8 +48,27 @@ if ($editMode && $editId > 0) {
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="manifest.json">
+    <!-- Mobile web app meta tags for Add to Home Screen -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Salty Admin">
+    <link rel="apple-touch-icon" href="../assets/img/logo.svg">
+
     <link rel="stylesheet" href="assets/css/styles.css" />
     <title><?= $editMode ? 'Edit Product' : 'Add Product' ?> — Admin</title>
+
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('Admin Service Worker registered:', reg.scope))
+            .catch(err => console.error('Admin Service Worker registration failed:', err));
+        });
+      }
+    </script>
+
     <style>
         /* ── Layout ── */
         .container          { display: flex; gap: 0; min-height: 100vh; }
@@ -106,6 +125,69 @@ if ($editMode && $editId > 0) {
             font-size: .75rem; font-weight: 600; padding: .25rem .75rem;
             margin-bottom: 1rem;
         }
+
+        /* ── Normalize styles.css inside the split dashboard layout ── */
+        body {
+            background-color: #f8f8f8;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .form {
+            margin: 0 !important;
+            min-width: 0 !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+        }
+
+        /* ── Responsive wizard and layouts ── */
+        @media (max-width: 900px) {
+            .container {
+                flex-direction: column;
+            }
+            .form-container {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #e5e7eb;
+                padding: 1.5rem;
+            }
+            .preview-container {
+                width: 100%;
+                padding: 1.5rem;
+                min-height: 500px;
+            }
+            .preview-frame {
+                min-height: 500px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .form-container {
+                padding: 1rem;
+            }
+            .preview-container {
+                padding: 1rem;
+            }
+            .stages label {
+                width: 38px !important;
+                height: 38px !important;
+                line-height: 38px !important;
+                border-width: 3px !important;
+                font-size: 0.85rem !important;
+            }
+            .progress > span {
+                transform: translateY(-2.25em);
+            }
+            #additionalInfosTable th, #additionalInfosTable td,
+            #customizationTable th, #customizationTable td {
+                padding: 0.3em;
+                font-size: 0.8rem;
+            }
+            #additionalInfosTable, #customizationTable {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+        }
     </style>
 </head>
 <body>
@@ -113,6 +195,16 @@ if ($editMode && $editId > 0) {
 
     <!-- ══════════════════ FORM PANEL ══════════════════ -->
     <div class="form-container">
+        <!-- Navigation Links for Admin -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;padding-bottom:.75rem;border-bottom:1px solid #e5e7eb;">
+            <a href="dashboard.php" style="text-decoration:none;color:#d32f2f;font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:.3rem;">
+                📊 ← Back to Dashboard
+            </a>
+            <a href="../home" style="text-decoration:none;color:#6b7280;font-weight:500;font-size:.85rem;display:flex;align-items:center;gap:.3rem;">
+                🏪 Main Shop
+            </a>
+        </div>
+
         <div class="form">
             <?php if ($editMode): ?>
                 <span class="edit-badge">✏️ Editing Product #<?= $editId ?></span>
