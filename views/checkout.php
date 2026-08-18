@@ -360,6 +360,7 @@
         event.preventDefault();
         
         if (isRequestInProgress) return;
+        isRequestInProgress = true;
 
         // Disable the button immediately
         placeOrderButton.disabled = true;
@@ -501,6 +502,7 @@
           showMessage("Please select an address.", 'error');
           placeOrderButton.disabled = false;
           placeOrderButton.textContent = "Place Order";
+          isRequestInProgress = false;
           return;
         }
         
@@ -511,7 +513,12 @@
         processPayment();
       } else {
         // Validate guest form
-        if (!validateGuestForm()) return;
+        if (!validateGuestForm()) {
+          placeOrderButton.disabled = false;
+          placeOrderButton.textContent = "Place Order";
+          isRequestInProgress = false;
+          return;
+        }
         
         // Create form data with guest details
         const formData = createGuestFormData();
@@ -519,8 +526,6 @@
         // Process payment with guest form data
         processPayment(formData);
       }
-      placeOrderButton.disabled = false;
-      placeOrderButton.textContent = "Place Order";
     }
     
     /**
