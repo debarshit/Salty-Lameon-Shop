@@ -839,6 +839,9 @@ if (!$isAdmin) {
           <button class="range-btn" data-range="90">90D</button>
           <button class="range-btn" data-range="365">1Y</button>
         </div>
+        <button class="btn-refresh" id="pushNotifyBtn" style="display:none; background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-weight:600;">
+          🔔 Enable Alerts
+        </button>
         <button class="btn-refresh" id="refreshBtn">
           <span class="spin">↻</span> Refresh
         </button>
@@ -1776,42 +1779,110 @@ function urlB64ToUint8Array(base64String) {
   return outputArray;
 }
 
-async function subscribeAdminToPush() {
+async function checkNotificationPermission() {
+  const btn = $('pushNotifyBtn');
+  if (!btn) return;
+  
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    btn.style.display = 'none';
+    return;
+  }
+  
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    
+    if (Notification.permission === 'granted' && sub) {
+      btn.style.display = 'none';
+      subscribeAdminToPush(true); // Silent sync since subscription already exists (no guesture required)
+    } else {
+      btn.style.display = 'inline-flex';
+    }
+  } catch (err) {
+    console.error('Error checking push subscription status:', err);
+    btn.style.display = 'inline-flex';
+  }
+}
+
+async function subscribeAdminToPush(isSilent = false) {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     return;
   }
   try {
     const reg = await navigator.serviceWorker.ready;
-    let sub = await reg.pushManager.getSubscription();
     
-    if (Notification.permission === 'default') {
+    if (!isSilent) {
       const permission = await Notification.requestPermission();
-      if (permission !== 'granted') return;
-    } else if (Notification.permission !== 'granted') {
-      return;
+      if (permission !== 'granted') {
+        alert("Notification permission was denied. Please enable it in your browser settings to receive order alerts.");
+        return;
+      }
+    } else {
+      if (Notification.permission !== 'granted') return;
     }
 
+    let sub = await reg.pushManager.getSubscription();
     if (!sub) {
-      const applicationServerKey = urlB64ToUint8Array('BA98sR8lNAUUcfJ4JfLzqmpUEaDy4hLWfzoPCjtejclHgSxUCXxMoEXIMl4mWkH5ZoiWl7agdSsCKZ3DYXzKxgE');
+      const applicationServerKey = urlB64ToUint8Array('BDOh0ypNL19a1LCk5qZrswYKZklWmNTLymAKV4X91Ql6StVciKY2_pCCwKbKOuSgVIAnM4hslGJUiW9wc8NCwW0');
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey
       });
     }
 
-    await fetch('actions.php?action=saveAdminPushSubscription', {
+    const subJson = sub.toJSON();
+    let p256dh = subJson.keys ? subJson.keys.p256dh : null;
+    let auth = subJson.keys ? subJson.keys.auth : null;
+    
+    if (!p256dh && sub.getKey) {
+      const rawP256dh = sub.getKey('p256dh');
+      p256dh = btoa(String.fromCharCode.apply(null, new Uint8Array(rawP256dh)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+    if (!auth && sub.getKey) {
+      const rawAuth = sub.getKey('auth');
+      auth = btoa(String.fromCharCode.apply(null, new Uint8Array(rawAuth)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    const payload = {
+      endpoint: sub.endpoint,
+      keys: {
+        p256dh: p256dh,
+        auth: auth
+      }
+    };
+
+    const res = await fetch('actions.php?action=saveAdminPushSubscription', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(sub)
+      body: JSON.stringify(payload)
     });
+    
+    if (res.ok) {
+      const btn = $('pushNotifyBtn');
+      if (btn) btn.style.display = 'none';
+      if (!isSilent) {
+        showToast("Notifications enabled successfully!");
+      }
+    } else {
+      const errBody = await res.text().catch(() => '');
+      throw new Error(`Server returned HTTP ${res.status}: ${errBody}`);
+    }
   } catch (err) {
     console.error('Push subscription failed:', err);
+    if (!isSilent) {
+      alert('Failed to enable notifications: ' + err.message + '\n\nCheck browser console for details.');
+    }
   }
 }
 
 /* ─ init ─ */
 setView('overview', currentRange);
-subscribeAdminToPush();
+checkNotificationPermission();
+if ($('pushNotifyBtn')) {
+  $('pushNotifyBtn').addEventListener('click', () => subscribeAdminToPush(false));
+}
 </script>
 </body>
 </html>

@@ -596,7 +596,12 @@
                     }
                 }
                 mysqli_commit($shopLink);
-                notifyAdminsNewOrder($orderId, $cartTotal);
+                // For online payments, notify only after payment is confirmed (in paymentSuccessful).
+                // For COD, notify immediately since there is no payment step.
+                $paymentMethodPost = $_POST['paymentMethod'] ?? 'cod';
+                if ($paymentMethodPost !== 'online') {
+                    notifyAdminsNewOrder($orderId, $cartTotal);
+                }
                 echo json_encode(['success' => true, 'orderId' => $orderId]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Error: Unable to create order.']);
@@ -1190,6 +1195,17 @@
 
     $responseData = json_decode($response, true);
 
+    // If Cashfree did not return a payment link, the order is unrecoverable — delete it
+    // so it doesn't become an orphan. (Orders with a link but no payment are kept as leads.)
+    if (empty($responseData['link_url']) && $orderId > 0) {
+        $stmtDel = mysqli_prepare($shopLink, "DELETE FROM orders WHERE OrderId = ? AND PaymentStatus = 0");
+        if ($stmtDel) {
+            mysqli_stmt_bind_param($stmtDel, "i", $orderId);
+            mysqli_stmt_execute($stmtDel);
+            mysqli_stmt_close($stmtDel);
+        }
+    }
+
     echo json_encode($responseData);
     exit;
 }
@@ -1275,6 +1291,17 @@
 
                     mysqli_stmt_execute($stmtInsert);
                     mysqli_stmt_close($stmtInsert);
+
+                    // Notify admins now that payment is confirmed — amount read securely from DB
+                    if ($orderId > 0) {
+                        $stmtAmt = mysqli_prepare($shopLink, "SELECT TotalAmount FROM orders WHERE OrderId = ?");
+                        mysqli_stmt_bind_param($stmtAmt, "i", $orderId);
+                        mysqli_stmt_execute($stmtAmt);
+                        mysqli_stmt_bind_result($stmtAmt, $confirmedTotal);
+                        mysqli_stmt_fetch($stmtAmt);
+                        mysqli_stmt_close($stmtAmt);
+                        notifyAdminsNewOrder($orderId, $confirmedTotal);
+                    }
                 }
             }
 

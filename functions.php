@@ -1340,49 +1340,67 @@ function fetchOrderDetails($orderId) {
 function notifyAdminsNewOrder($orderId, $totalAmount) {
     global $shopLink;
 
-    $publicKey = $_ENV['VAPID_PUBLIC_KEY'] ?? '';
+    $publicKey  = $_ENV['VAPID_PUBLIC_KEY']  ?? '';
     $privateKey = $_ENV['VAPID_PRIVATE_KEY'] ?? '';
 
     if (empty($publicKey) || empty($privateKey)) {
         return;
     }
 
-    $query = "SELECT endpoint, p256dh, auth FROM admin_push_subscriptions";
+    $query  = "SELECT id, endpoint, p256dh, auth FROM admin_push_subscriptions";
     $result = mysqli_query($shopLink, $query);
 
     if (!$result || mysqli_num_rows($result) === 0) {
         return;
     }
 
-    $auth = [
+    $authConfig = [
         'VAPID' => [
-            'subject' => 'mailto:admin@biblophile.com',
-            'publicKey' => $publicKey,
-            'privateKey' => $privateKey
+            'subject'    => 'mailto:admin@thesaltylameon.com',
+            'publicKey'  => $publicKey,
+            'privateKey' => $privateKey,
         ]
     ];
 
+    // 5-second connect + transfer timeout so a dead endpoint never blocks the order
+    $httpClient = new \GuzzleHttp\Client([
+        'timeout'         => 5,
+        'connect_timeout' => 5,
+    ]);
+    $httpAdapter = new \Http\Adapter\Guzzle7\Client($httpClient);
+
     try {
-        $webPush = new WebPush($auth);
+        $webPush = new WebPush($authConfig, [], $httpAdapter);
         $payload = json_encode([
-            'title' => 'New Order Alert! 🛒',
-            'body' => "Order #$orderId has been placed for a total of ₹" . number_format($totalAmount) . ".",
-            'url' => 'admin/dashboard.php?section=orders'
+            'title' => 'New Order! 🛒',
+            'body'  => "Order #$orderId placed — ₹" . number_format($totalAmount) . ".",
+            'url'   => 'admin/dashboard.php?section=orders',
         ]);
 
+        $subscriptionIds = [];
         while ($row = mysqli_fetch_assoc($result)) {
-            $subscription = Subscription::create([
-                'endpoint' => $row['endpoint'],
-                'keys' => [
-                    'p256dh' => $row['p256dh'],
-                    'auth' => $row['auth']
-                ]
-            ]);
-            $webPush->queueNotification($subscription, $payload);
+            $subscriptionIds[$row['endpoint']] = $row['id'];
+            $webPush->queueNotification(
+                Subscription::create([
+                    'endpoint' => $row['endpoint'],
+                    'keys'     => ['p256dh' => $row['p256dh'], 'auth' => $row['auth']],
+                ]),
+                $payload
+            );
         }
 
         foreach ($webPush->flush() as $report) {
-            // Push reports can be logged here if needed
+            $endpoint = (string) $report->getRequest()->getUri();
+            if (!$report->isSuccess()) {
+                error_log("Push failed for endpoint " . substr($endpoint, 0, 60) . ": " . $report->getReason());
+                // Remove expired/rejected subscriptions so they never block again
+                $statusCode = $report->getResponse() ? $report->getResponse()->getStatusCode() : 0;
+                if (in_array($statusCode, [404, 410, 403, 400]) && isset($subscriptionIds[$endpoint])) {
+                    $deadId = $subscriptionIds[$endpoint];
+                    mysqli_query($shopLink, "DELETE FROM admin_push_subscriptions WHERE id = $deadId");
+                    error_log("Removed dead push subscription id=$deadId");
+                }
+            }
         }
     } catch (\Exception $e) {
         error_log("Failed to send web push notification: " . $e->getMessage());
