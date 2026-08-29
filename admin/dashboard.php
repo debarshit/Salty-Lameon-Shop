@@ -291,6 +291,18 @@ if (!$isAdmin) {
       transform: scale(1.2);
     }
 
+    /* Push-notification deep-link highlight */
+    @keyframes order-highlight-pulse {
+      0%   { background-color: #fff9c4; }
+      50%  { background-color: #ffe082; }
+      100% { background-color: transparent; }
+    }
+    .data-table tr.order-row--highlight td {
+      animation: order-highlight-pulse 2.5s ease forwards;
+      outline: 2px solid #f9a825;
+      outline-offset: -2px;
+    }
+
     /* Status badges */
     .badge {
       display: inline-block;
@@ -1223,6 +1235,21 @@ async function loadOrdersTable() {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     ordersCache = await r.json();
     renderOrdersTable(ordersCache);
+
+    // If we arrived from a push notification, highlight and open that order
+    if (highlightOrderId) {
+      const targetId = highlightOrderId;
+      highlightOrderId = null; // consume so refreshes don't re-trigger
+      const row = $(`order-row-${targetId}`);
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.classList.add('order-row--highlight');
+        // Open the detail modal after the scroll settles
+        setTimeout(() => openOrderModal(targetId), 500);
+        // Remove highlight class after animation finishes
+        setTimeout(() => row.classList.remove('order-row--highlight'), 3000);
+      }
+    }
   } catch(e) {
     wrap.innerHTML = `<div class="error-msg">Failed to load orders: ${e.message}</div>`;
   }
@@ -1877,8 +1904,24 @@ async function subscribeAdminToPush(isSilent = false) {
   }
 }
 
-/* ─ init ─ */
-setView('overview', currentRange);
+/* ─ notification deep-link: ?section=orders&orderId=123 ─ */
+let highlightOrderId = null;
+
+(function handleNotificationDeepLink() {
+  const params  = new URLSearchParams(window.location.search);
+  const section = params.get('section');
+  const orderId = parseInt(params.get('orderId') || '0', 10);
+
+  if (section === 'orders') {
+    if (orderId > 0) highlightOrderId = orderId;
+    // Replace URL so a manual refresh doesn't re-trigger the highlight
+    history.replaceState(null, '', window.location.pathname);
+    setView('orders', currentRange);
+  } else {
+    setView('overview', currentRange);
+  }
+})();
+
 checkNotificationPermission();
 if ($('pushNotifyBtn')) {
   $('pushNotifyBtn').addEventListener('click', () => subscribeAdminToPush(false));
