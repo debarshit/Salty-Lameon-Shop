@@ -98,6 +98,17 @@
                   <option value="Other">Other</option>
               </select>
 
+              <label class="checkbox">
+                <input 
+                  type="checkbox" 
+                  name="email_updates" 
+                  checked
+                />
+                <span>
+                  I agree to receive updates about new product launches and special offers.
+                </span>
+              </label>
+
               <div class="form__btn">
                 <button type="submit" class="btn">Register</button>
               </div>
@@ -219,8 +230,9 @@ document.getElementById('signupForm').addEventListener('submit', function(event)
     const password = this.password.value;
     const signupPassCnf = this.confirm_password.value;
     const referral = this.referral.value;
+    const emailUpdates = this.email_updates.checked;
 
-    const data = { name, email, phone, password, signupPassCnf, source: referral };
+    const data = { name, email, phone, password, signupPassCnf, source: referral, emailUpdates };
   
     fetch('actions.php?action=signup', {
       method: 'POST',

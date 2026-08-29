@@ -1,6 +1,14 @@
 <?php
 $current_page = isset($_GET['page']) ? $_GET['page'] : 'home';
 $is_logged_in = isset($_COOKIE['user_session']) && !empty($_COOKIE['user_session']);
+$is_admin = false;
+if ($is_logged_in) {
+    $accessToken = getAccessTokenFromSession();
+    if ($accessToken) {
+        $role = getUserRoleFromAccessToken($accessToken);
+        $is_admin = ($role === 'admin');
+    }
+}
 ob_start();
 ?>
 
@@ -91,6 +99,12 @@ ob_start();
             <?php if ($is_logged_in): ?>
               <li class="nav__item">
                 <a href="accounts" class="nav__link<?= $current_page === 'accounts' ? 'active-link' : '' ?>">My Account</a>
+              </li>
+            <?php endif; ?>
+
+            <?php if ($is_admin): ?>
+              <li class="nav__item">
+                <a href="admin/dashboard.php" class="nav__link <?= $current_page === 'dashboard' ? 'active-link' : '' ?>">Dashboard</a>
               </li>
             <?php endif; ?>
 

@@ -9,6 +9,8 @@
 
     use Firebase\JWT\JWT;
     use Firebase\JWT\Key;
+    use Minishlink\WebPush\WebPush;
+    use Minishlink\WebPush\Subscription;
 
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
     $dotenv->load();
@@ -107,6 +109,13 @@
     // Function to fetch categories from the database
     function displayCategories() {
         global $shopLink;
+        $accessToken = getAccessTokenFromSession();
+        $isAdmin = false;
+
+        if ($accessToken) {
+            $role = getUserRoleFromAccessToken($accessToken);
+            $isAdmin = ($role === 'admin');
+        }
 
         $query = "SELECT CategoryImage, CategoryName, CategoryId FROM categories WHERE IsAvailable = 1 LIMIT 8";
         $result = mysqli_query($shopLink, $query);
@@ -118,11 +127,22 @@
 
         $categories_html = '';
 
+        if ($isAdmin) {
+            $categories_html .= '
+                <a href="add-category" class="category__item add-category">
+                    <h3 class="category__title">+ Add Category</h3>
+                </a>';
+        }
+
         while ($row = mysqli_fetch_assoc($result)) {
             $image = htmlspecialchars($row['CategoryImage']);
             $name = htmlspecialchars($row['CategoryName']);
             $categoryId = htmlspecialchars($row['CategoryId']);
-            $categoryUrl = "shop/{$categoryId}/" . urlencode($name);
+            $slug = strtolower(trim($name));
+            $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
+            $slug = trim($slug, '-');
+
+            $categoryUrl = "shop/{$categoryId}/{$slug}";
             $categories_html .= '
                 <a href="' . $categoryUrl . '" class="category__item swiper-slide">
                     <!-- <img src="' . $image . '" alt="" class="category__img"> -->
@@ -134,7 +154,12 @@
     }
 
     //function to fetch images from imagekit folder
+    $isPreview = isset($_GET['preview']) && $_GET['preview'] == '1';
     function fetchImagesFromImageKit($folderPath) {
+        global $isPreview;
+        if ($isPreview) {
+            return null;
+        }
         $apiUrl = 'https://api.imagekit.io/v1/files';
         $ch = curl_init();
     
@@ -634,6 +659,19 @@ function getUserIdFromAccessToken($accessToken) {
         $decoded = JWT::decode($accessToken, new Key($secretKey, 'HS256'));
 
         return $decoded->userId ?? null;
+
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
+function getUserRoleFromAccessToken($accessToken) {
+    $secretKey = 'my_super_secure_secret_key_2026_very_long_random';
+
+    try {
+        $decoded = JWT::decode($accessToken, new Key($secretKey, 'HS256'));
+
+        return $decoded->role ?? null;
 
     } catch (Exception $e) {
         return null;
@@ -1297,4 +1335,80 @@ function fetchOrderDetails($orderId) {
     echo '</table>';
 
     return;
+}
+
+function notifyAdminsNewOrder($orderId, $totalAmount) {
+    global $shopLink;
+
+    $publicKey  = $_ENV['VAPID_PUBLIC_KEY']  ?? '';
+    $privateKey = $_ENV['VAPID_PRIVATE_KEY'] ?? '';
+
+    if (empty($publicKey) || empty($privateKey)) {
+        return;
+    }
+
+    $query  = "SELECT id, endpoint, p256dh, auth FROM admin_push_subscriptions";
+    $result = mysqli_query($shopLink, $query);
+
+    if (!$result || mysqli_num_rows($result) === 0) {
+        return;
+    }
+
+    $authConfig = [
+        'VAPID' => [
+            'subject'    => 'mailto:admin@thesaltylameon.com',
+            'publicKey'  => $publicKey,
+            'privateKey' => $privateKey,
+        ]
+    ];
+
+    // 5-second connect + transfer timeout so a dead endpoint never blocks the order
+    $httpClient = new \GuzzleHttp\Client([
+        'timeout'         => 5,
+        'connect_timeout' => 5,
+    ]);
+    $httpAdapter = new \Http\Adapter\Guzzle7\Client($httpClient);
+
+    try {
+        $webPush = new WebPush($authConfig, [], $httpAdapter);
+
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+        $host     = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $basePath = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+        $notifyUrl = $protocol . $host . $basePath . '/admin/dashboard.php?section=orders&orderId=' . $orderId;
+
+        $payload = json_encode([
+            'title' => 'New Order! 🛒',
+            'body'  => "Order #$orderId placed — ₹" . number_format($totalAmount) . ".",
+            'url'   => $notifyUrl,
+        ]);
+
+        $subscriptionIds = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $subscriptionIds[$row['endpoint']] = $row['id'];
+            $webPush->queueNotification(
+                Subscription::create([
+                    'endpoint' => $row['endpoint'],
+                    'keys'     => ['p256dh' => $row['p256dh'], 'auth' => $row['auth']],
+                ]),
+                $payload
+            );
+        }
+
+        foreach ($webPush->flush() as $report) {
+            $endpoint = (string) $report->getRequest()->getUri();
+            if (!$report->isSuccess()) {
+                error_log("Push failed for endpoint " . substr($endpoint, 0, 60) . ": " . $report->getReason());
+                // Remove expired/rejected subscriptions so they never block again
+                $statusCode = $report->getResponse() ? $report->getResponse()->getStatusCode() : 0;
+                if (in_array($statusCode, [404, 410, 403, 400]) && isset($subscriptionIds[$endpoint])) {
+                    $deadId = $subscriptionIds[$endpoint];
+                    mysqli_query($shopLink, "DELETE FROM admin_push_subscriptions WHERE id = $deadId");
+                    error_log("Removed dead push subscription id=$deadId");
+                }
+            }
+        }
+    } catch (\Exception $e) {
+        error_log("Failed to send web push notification: " . $e->getMessage());
+    }
 }

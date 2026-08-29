@@ -519,7 +519,8 @@
     
         }
     
-        $paymentStatus = ($_POST['paymentMethod'] == 'online') ? 1 : 0; // 1 for online, 0 for offline
+        // For online payments, initially set PaymentStatus = 0 (Unpaid) until payment is confirmed.
+        $paymentStatus = 0;
         $shippingCharge = $_POST['shippingCharge'];
         $cartTotal = $_POST['totalAmount'];
         $addressId = $isGuest ? null : $_POST['addressId']; // Set addressId to null for guests
@@ -595,6 +596,12 @@
                     }
                 }
                 mysqli_commit($shopLink);
+                // For online payments, notify only after payment is confirmed (in paymentSuccessful).
+                // For COD, notify immediately since there is no payment step.
+                $paymentMethodPost = $_POST['paymentMethod'] ?? 'cod';
+                if ($paymentMethodPost !== 'online') {
+                    notifyAdminsNewOrder($orderId, $cartTotal);
+                }
                 echo json_encode(['success' => true, 'orderId' => $orderId]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Error: Unable to create order.']);
@@ -998,6 +1005,7 @@
         $password   = $data['password'] ?? '';
         $confirmPwd = $data['signupPassCnf'] ?? '';
         $source     = $data['source'] ?? null;
+        $emailUpdates = $data['emailUpdates'] ?? false;
 
         if (!$name || !$email || !$password || !$confirmPwd) {
             echo json_encode(['message' => 'All fields are required']);
@@ -1027,6 +1035,41 @@
             'password' => $password, // hash later
             'sourceReferral' => $source
         ]);
+
+        if ($emailUpdates) {
+
+            $brevoData = [
+                "email" => $email,
+                "attributes" => [
+                    "FIRSTNAME" => $name,
+                    "SMS" => $phone,
+                    "SOURCE" => $source
+                ],
+                "listIds" => [2],
+                "updateEnabled" => true
+            ];
+
+            $ch = curl_init();
+
+            curl_setopt($ch, CURLOPT_URL, 'https://api.brevo.com/v3/contacts');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($brevoData));
+
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'accept: application/json',
+                'api-key: ' . $_ENV['BREVO_API_KEY'],
+                'content-type: application/json'
+            ]);
+
+            $response = curl_exec($ch);
+
+            if (curl_errno($ch)) {
+                error_log('Brevo Error: ' . curl_error($ch));
+            }
+
+            curl_close($ch);
+        }
 
         echo json_encode(['message' => 1]);
         exit;
@@ -1077,13 +1120,31 @@
 
     // Generate unique link_id
     $link_id = 'link_' . time() . '_' . uniqid();
+    $orderId = $input['orderId'] ?? 0;
+
+    // Securely retrieve the total amount directly from the database using orderId
+    $secureAmount = 0.00;
+    if ($orderId > 0) {
+        $stmtOrder = mysqli_prepare($shopLink, "SELECT TotalAmount FROM orders WHERE OrderId = ?");
+        mysqli_stmt_bind_param($stmtOrder, "i", $orderId);
+        mysqli_stmt_execute($stmtOrder);
+        mysqli_stmt_bind_result($stmtOrder, $secureAmount);
+        mysqli_stmt_fetch($stmtOrder);
+        mysqli_stmt_close($stmtOrder);
+    }
+
+    if ($secureAmount <= 0) {
+        http_response_code(400);
+        echo json_encode(["message" => "Invalid order amount or order not found"]);
+        exit;
+    }
 
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
     $host = $_SERVER['HTTP_HOST'];
     $basePath = dirname($_SERVER['PHP_SELF']);
 
     $returnUrl = $protocol . $host . $basePath .
-        "/actions.php?action=paymentSuccessful&linkId=" . $link_id;
+        "/actions.php?action=paymentSuccessful&linkId=" . $link_id . "&orderId=" . $orderId;
 
     $payload = [
         "customer_details" => [
@@ -1099,7 +1160,7 @@
             "payment_methods" => "dc,nb,upi"
         ],
         "link_id" => $link_id,
-        "link_amount" => $input['amount'],
+        "link_amount" => $secureAmount,
         "link_currency" => "INR",
         "link_purpose" => "SaltyLameon Studios Payment"
     ];
@@ -1134,6 +1195,17 @@
 
     $responseData = json_decode($response, true);
 
+    // If Cashfree did not return a payment link, the order is unrecoverable — delete it
+    // so it doesn't become an orphan. (Orders with a link but no payment are kept as leads.)
+    if (empty($responseData['link_url']) && $orderId > 0) {
+        $stmtDel = mysqli_prepare($shopLink, "DELETE FROM orders WHERE OrderId = ? AND PaymentStatus = 0");
+        if ($stmtDel) {
+            mysqli_stmt_bind_param($stmtDel, "i", $orderId);
+            mysqli_stmt_execute($stmtDel);
+            mysqli_stmt_close($stmtDel);
+        }
+    }
+
     echo json_encode($responseData);
     exit;
 }
@@ -1154,12 +1226,21 @@
                 $tokenResult = getUserIdFromToken($headers, $secretKey);
                 $custId = $input['customerId'] ?? $tokenResult['userId'] ?? 0;
             } catch (Exception $e) {
-                $userId = null;
+                $custId = 0;
             }
         }
 
-        $custPhone = $input['customerPhone'];
-        $amount = $input['amount'];
+        // If not authenticated via header, try session cookie
+        if (!$custId) {
+            $accessToken = getAccessTokenFromSession();
+            if ($accessToken) {
+                $custId = getUserIdFromAccessToken($accessToken);
+            }
+        }
+
+        $custPhone = $input['customerPhone'] ?? null;
+        $amount = $input['amount'] ?? null;
+        $orderId = isset($_GET['orderId']) ? (int)$_GET['orderId'] : 0;
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $_ENV['CASHFREE_API_URL'] .'/'. $_GET['linkId']);
@@ -1176,7 +1257,10 @@
         $responseData = json_decode($response, true);
 
         // Check if payment is successful
-        if ($responseData['link_status'] == "PAID") {
+        if (isset($responseData['link_status']) && $responseData['link_status'] == "PAID") {
+             $custPhone = $custPhone ?? $responseData['customer_details']['customer_phone'] ?? null;
+             $amount = $amount ?? $responseData['link_amount'] ?? 0;
+
              if ($custPhone) {
                 // Step 1: Check if payment already exists
                 $checkQuery = "SELECT COUNT(*) FROM payments WHERE LinkId = ?";
@@ -1207,17 +1291,177 @@
 
                     mysqli_stmt_execute($stmtInsert);
                     mysqli_stmt_close($stmtInsert);
+
+                    // Notify admins now that payment is confirmed — amount read securely from DB
+                    if ($orderId > 0) {
+                        $stmtAmt = mysqli_prepare($shopLink, "SELECT TotalAmount FROM orders WHERE OrderId = ?");
+                        mysqli_stmt_bind_param($stmtAmt, "i", $orderId);
+                        mysqli_stmt_execute($stmtAmt);
+                        mysqli_stmt_bind_result($stmtAmt, $confirmedTotal);
+                        mysqli_stmt_fetch($stmtAmt);
+                        mysqli_stmt_close($stmtAmt);
+                        notifyAdminsNewOrder($orderId, $confirmedTotal);
+                    }
                 }
             }
 
-            // Payment successful, send the status to frontend
-            echo json_encode(["status" => "success. You can close this window."]);
+            // Update the order's PaymentStatus to 1 (Paid) and deduct inventory stock
+            if ($orderId > 0) {
+                // First, check the current PaymentStatus to prevent double-decrementing stock
+                $checkOrderQuery = "SELECT PaymentStatus FROM orders WHERE OrderId = ?";
+                $stmtCheckOrder = mysqli_prepare($shopLink, $checkOrderQuery);
+                mysqli_stmt_bind_param($stmtCheckOrder, "i", $orderId);
+                mysqli_stmt_execute($stmtCheckOrder);
+                mysqli_stmt_bind_result($stmtCheckOrder, $currentPaymentStatus);
+                mysqli_stmt_fetch($stmtCheckOrder);
+                mysqli_stmt_close($stmtCheckOrder);
+
+                if ($currentPaymentStatus === 0) {
+                    // Start transaction for updating payment and stock
+                    mysqli_begin_transaction($shopLink);
+                    try {
+                        // 1. Update PaymentStatus
+                        $updateQuery = "UPDATE orders SET PaymentStatus = 1 WHERE OrderId = ?";
+                        $stmtUpdate = mysqli_prepare($shopLink, $updateQuery);
+                        mysqli_stmt_bind_param($stmtUpdate, "i", $orderId);
+                        mysqli_stmt_execute($stmtUpdate);
+                        mysqli_stmt_close($stmtUpdate);
+
+                        // 2. Fetch all items in this order and decrement stock in products table
+                        $itemsQuery = "SELECT ProductId, Quantity FROM orderitems WHERE OrderId = ?";
+                        $stmtItems = mysqli_prepare($shopLink, $itemsQuery);
+                        mysqli_stmt_bind_param($stmtItems, "i", $orderId);
+                        mysqli_stmt_execute($stmtItems);
+                        $resultItems = mysqli_stmt_get_result($stmtItems);
+
+                        $updateStockQuery = "UPDATE products SET StockQuantity = StockQuantity - ? WHERE ProductId = ? AND StockQuantity IS NOT NULL";
+                        $stmtUpdateStock = mysqli_prepare($shopLink, $updateStockQuery);
+
+                        while ($rowItem = mysqli_fetch_assoc($resultItems)) {
+                            $itemProdId = $rowItem['ProductId'];
+                            $itemQty = $rowItem['Quantity'];
+                            mysqli_stmt_bind_param($stmtUpdateStock, "ii", $itemQty, $itemProdId);
+                            mysqli_stmt_execute($stmtUpdateStock);
+                        }
+                        
+                        mysqli_stmt_close($stmtUpdateStock);
+                        mysqli_stmt_close($stmtItems);
+
+                        mysqli_commit($shopLink);
+                    } catch (Exception $e) {
+                        mysqli_rollback($shopLink);
+                        error_log("Failed to update payment status and deduct stock for Order #$orderId: " . $e->getMessage());
+                    }
+                }
+            }
+
+            if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+                $host = $_SERVER['HTTP_HOST'];
+                $basePath = dirname($_SERVER['PHP_SELF']);
+                
+                header("Location: " . $protocol . $host . $basePath . "/checkout?payment_success=true&orderId=" . $orderId . "&amount=" . urlencode($amount));
+                exit;
+            } else {
+                // Payment successful, send the status to frontend
+                echo json_encode(["status" => "success. You can close this window."]);
+            }
         } else {
             // Payment not successful
-            echo json_encode(["status" => "failed", "error" => "Payment not successful"]);
+            if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+                $host = $_SERVER['HTTP_HOST'];
+                $basePath = dirname($_SERVER['PHP_SELF']);
+                
+                header("Location: " . $protocol . $host . $basePath . "/checkout?payment_failed=true");
+                exit;
+            } else {
+                echo json_encode(["status" => "failed", "error" => "Payment not successful"]);
+            }
         }
 
         curl_close($ch);
+    }
+
+    if (isset($_GET['action']) && $_GET['action'] === "cashfreeWebhook") {
+        header('Content-Type: application/json');
+        
+        $request_body = file_get_contents('php://input');
+        $data = json_decode($request_body, true);
+        
+        if (!$data) {
+            http_response_code(400);
+            echo json_encode(["status" => "invalid payload"]);
+            exit;
+        }
+
+        $linkId = $data['data']['link_id'] ?? null;
+        $orderId = isset($data['data']['order_id']) ? (int)$data['data']['order_id'] : 0;
+        $linkStatus = $data['data']['link_status'] ?? null;
+        
+        if (!$linkId) {
+            $orderId = isset($data['data']['order']['order_id']) ? (int)$data['data']['order']['order_id'] : 0;
+            $paymentStatus = $data['data']['payment']['payment_status'] ?? null;
+            if ($paymentStatus === 'SUCCESS') {
+                $linkStatus = 'PAID';
+            }
+        }
+
+        if ($orderId > 0 && $linkStatus === 'PAID') {
+            global $shopLink;
+
+            $checkOrderQuery = "SELECT PaymentStatus FROM orders WHERE OrderId = ?";
+            $stmtCheckOrder = mysqli_prepare($shopLink, $checkOrderQuery);
+            mysqli_stmt_bind_param($stmtCheckOrder, "i", $orderId);
+            mysqli_stmt_execute($stmtCheckOrder);
+            mysqli_stmt_bind_result($stmtCheckOrder, $currentPaymentStatus);
+            mysqli_stmt_fetch($stmtCheckOrder);
+            mysqli_stmt_close($stmtCheckOrder);
+
+            if ($currentPaymentStatus === 0) {
+                mysqli_begin_transaction($shopLink);
+                try {
+                    // 1. Update PaymentStatus
+                    $updateQuery = "UPDATE orders SET PaymentStatus = 1 WHERE OrderId = ?";
+                    $stmtUpdate = mysqli_prepare($shopLink, $updateQuery);
+                    mysqli_stmt_bind_param($stmtUpdate, "i", $orderId);
+                    mysqli_stmt_execute($stmtUpdate);
+                    mysqli_stmt_close($stmtUpdate);
+
+                    // 2. Fetch and decrement stock
+                    $itemsQuery = "SELECT ProductId, Quantity FROM orderitems WHERE OrderId = ?";
+                    $stmtItems = mysqli_prepare($shopLink, $itemsQuery);
+                    mysqli_stmt_bind_param($stmtItems, "i", $orderId);
+                    mysqli_stmt_execute($stmtItems);
+                    $resultItems = mysqli_stmt_get_result($stmtItems);
+
+                    $updateStockQuery = "UPDATE products SET StockQuantity = StockQuantity - ? WHERE ProductId = ? AND StockQuantity IS NOT NULL";
+                    $stmtUpdateStock = mysqli_prepare($shopLink, $updateStockQuery);
+
+                    while ($rowItem = mysqli_fetch_assoc($resultItems)) {
+                        $itemProdId = $rowItem['ProductId'];
+                        $itemQty = $rowItem['Quantity'];
+                        mysqli_stmt_bind_param($stmtUpdateStock, "ii", $itemQty, $itemProdId);
+                        mysqli_stmt_execute($stmtUpdateStock);
+                    }
+                    
+                    mysqli_stmt_close($stmtUpdateStock);
+                    mysqli_stmt_close($stmtItems);
+
+                    mysqli_commit($shopLink);
+                    
+                } catch (Exception $e) {
+                    mysqli_rollback($shopLink);
+                    error_log("Webhook database transaction failed for Order #$orderId: " . $e->getMessage());
+                }
+            }
+            
+            echo json_encode(["status" => "processed"]);
+            exit;
+        }
+
+        echo json_encode(["status" => "ignored"]);
+        exit;
     }
 
     // Function to extract and validate `user` from JWT
